@@ -19,8 +19,14 @@ export async function getCommentsByPost(
   return (data ?? []) as unknown as CommentWithAuthor[];
 }
 
-// Builds a parent → children tree from a flat list. Orphaned comments
-// (parent was deleted) are surfaced as roots so they don't disappear.
+// Builds a parent → children tree from a flat list.
+//
+// Soft delete is the normal path (`update is_deleted = true` in
+// src/actions/comments.ts), so a deleted parent still has its row in the
+// table and `byId.get(parent_id)` succeeds. The orphan branch below only
+// fires when an admin issues a hard `delete` against the table directly —
+// e.g. for moderation. In that case the children's `parent_id` points at
+// nothing and we surface them as roots so the conversation isn't lost.
 export function buildCommentTree(
   comments: CommentWithAuthor[],
 ): CommentNode[] {
@@ -38,6 +44,7 @@ export function buildCommentTree(
       if (parent) {
         parent.children.push(node);
       } else {
+        // Hard-deleted parent — promote orphan to root.
         roots.push(node);
       }
     } else {
