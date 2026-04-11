@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo",
+    "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* velog-inspired teal brand */
+  --color-brand-50: #e6fcf5;
+  --color-brand-100: #c3fae8;
+  --color-brand-200: #96f2d7;
+  --color-brand-300: #63e6be;
+  --color-brand-400: #38d9a9;
+  --color-brand-500: #20c997;
+  --color-brand-600: #12b886;
+  --color-brand-700: #0ca678;
+  --color-brand-800: #099268;
+  --color-brand-900: #087f5b;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    word-break: keep-all;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-white text-zinc-900;
+  }
+
+  ::selection {
+    @apply bg-brand-500/30;
+  }
+
+  /* velog-style focus ring (subtle, brand color) */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500/40 ring-offset-1;
+  }
 }
