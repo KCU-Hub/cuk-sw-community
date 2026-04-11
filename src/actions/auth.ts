@@ -39,7 +39,7 @@ export async function signUpAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
   });
@@ -47,7 +47,8 @@ export async function signUpAction(formData: FormData) {
   if (error) redirectWithError("/signup", error.message);
 
   revalidatePath("/", "layout");
-  // If email confirmation is on in Supabase, /me will bounce to /login until
-  // the user confirms. The (authed) guard handles that case.
+  // Supabase returns `session: null` when email confirmation is enabled —
+  // the user must click the link in their email before they can sign in.
+  if (!data.session) redirect("/auth/check-email");
   redirect("/me");
 }

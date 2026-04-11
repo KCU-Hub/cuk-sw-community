@@ -11,7 +11,7 @@ export default async function MePage() {
     <main className="mx-auto max-w-3xl px-4 py-12">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">내 프로필</h1>
-        <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+        <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-900">
           {profile.role === "admin" ? "관리자" : "일반회원"}
         </span>
       </div>

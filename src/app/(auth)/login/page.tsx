@@ -73,7 +73,7 @@ export default async function LoginPage({
         아직 계정이 없으신가요?{" "}
         <Link
           href="/signup"
-          className="font-medium text-brand-600 hover:text-brand-700"
+          className="font-medium text-brand-700 hover:text-brand-800"
         >
           회원가입
         </Link>
