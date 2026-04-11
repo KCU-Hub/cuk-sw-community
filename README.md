@@ -1,10 +1,10 @@
 # cuk-sw-community
 
-고려사이버대학교 소프트웨어학부 학생들을 위한 **커뮤니티 + 블로그 + 과목 자료실** MVP.
+고려사이버대학교 소프트웨어학부 학생들을 위한 **커뮤니티 + 블로그 + 과목 자료실** 플랫폼.
 
 - **Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Auth + Postgres + RLS)
 - **별도 백엔드 없음**: Server Actions 가 API 역할, Supabase RLS 가 권한 경계.
-- **5단계 phase 로 점진적 구축** — 현재는 **Phase 1 (기반 + 인증)** 완료.
+- **5단계 phase 로 점진적 구축** — 현재 **Phase 2 (포럼)** 완료.
 
 ---
 
@@ -12,11 +12,11 @@
 
 | Phase | 상태 | 내용 |
 | --- | --- | --- |
-| 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, /me, profiles/boards/courses/tags 시드 |
-| 2. 포럼 | ⏳ | posts/comments/likes, 마크다운 렌더링 |
-| 3. 블로그 | ⏳ | blog_posts/tags/시리즈, 코드 하이라이팅 (velog 스타일) |
+| 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, /me, profiles/boards/courses/tags 시드, error/loading/404, 이메일 확인 플로우, a11y |
+| 2. 포럼 | ✅ | posts/comments/post_likes, RLS, 마크다운 렌더링 (react-markdown + sanitize + highlight.js), 게시판 목록/상세/작성/수정, 댓글 트리, 좋아요 (optimistic), 조회수 RPC |
+| 3. 블로그 | ⏳ | blog_posts/tags/시리즈, velog 스타일 |
 | 4. 과목 자료실 | ⏳ | course_materials, 검색 |
-| 5. 관리자 + OAuth + 마무리 | ⏳ | /admin, Google/Kakao OAuth, 테스트, 폴리싱 |
+| 5. 관리자 + OAuth + 마무리 | ⏳ | 고급 admin 콘솔 (사용자 ban/삭제/리셋 + audit_logs), Google/Kakao OAuth, 테스트, 폴리싱 |
 
 ---
 
@@ -96,39 +96,78 @@ http://localhost:3000 으로 접속.
 
 ---
 
-## 동작 확인 (Phase 1)
+## 동작 확인
+
+### Phase 1 (기반 + 인증)
 
 - [ ] `/` 랜딩 페이지가 렌더됨
 - [ ] `/signup` 에서 이메일/비밀번호로 가입 → Supabase Studio 의 `auth.users` 와 `public.profiles` 양쪽에 row 생성
+- [ ] 이메일 확인이 켜져 있으면 `/auth/check-email` 로 이동, 메일 링크 클릭 → `/auth/callback` → `/me`
 - [ ] `/login` 으로 로그인 → 헤더에 사용자명 + 로그아웃 버튼 표시
 - [ ] `/me` 에 본인 프로필 정보 표시
 - [ ] 비로그인 상태로 `/me` 접근 → `/login` 으로 redirect
 - [ ] 로그아웃 → 홈으로 이동, 헤더가 다시 "로그인" 표시
+- [ ] Tab 키로 포커스 이동 시 좌상단에 "본문으로 건너뛰기" 링크 표시
+- [ ] 의도적으로 에러 발생시키면 `app/error.tsx` 의 reset 화면이 뜸
+
+### Phase 2 (포럼)
+
+- [ ] `/board` 에서 자유/질문/공지 게시판 목록 표시
+- [ ] `/board/free` 등 게시판별 페이지 → 글이 없으면 빈 상태, 있으면 카드 리스트 + 페이지네이션
+- [ ] 비로그인 상태에선 "글쓰기" 버튼 숨김, 로그인 후 노출
+- [ ] notice 게시판은 admin 이 아니면 글쓰기 버튼 숨김 (admin 으로 promote 후 확인)
+- [ ] 글쓰기 → 마크다운 작성/미리보기 탭 → 게시 → 상세 페이지로 이동
+- [ ] 코드 블록 (```` ```ts ````) → highlight.js 로 색상 적용, GFM 표/체크박스 동작
+- [ ] 게시글 상세에서 좋아요 버튼 → optimistic 업데이트, 새로고침 후 카운트 유지
+- [ ] 조회수가 페이지 진입 시 1 증가 (mount-once)
+- [ ] 댓글 작성, 답글 (대댓글), 깊이 cap 3 까지 들여쓰기
+- [ ] 본인 글/댓글에만 수정/삭제 노출, 다른 사용자 계정으로 시도 시 RLS 거부
+- [ ] 게시글/댓글 삭제 시 soft delete (`is_deleted=true`) 확인
 
 ---
 
-## 디렉토리 구조 (Phase 1 시점)
+## 디렉토리 구조 (Phase 2 시점)
 
 ```
 cuk-sw-community/
 ├── proxy.ts                       # Next 16: middleware → proxy. Supabase 세션 갱신
 ├── supabase/
-│   └── migrations/                # 0001/0002/0003 SQL
+│   └── migrations/                # 0001~0005 SQL (Phase 1 init/RLS/seed + Phase 2 forum/RLS)
 └── src/
     ├── app/
-    │   ├── layout.tsx             # 사이트 헤더 + Pretendard
+    │   ├── layout.tsx             # 사이트 헤더 + Pretendard + 메타데이터
     │   ├── page.tsx               # 랜딩
-    │   ├── (auth)/                # 비로그인 영역 (login, signup, signout 핸들러)
-    │   └── (authed)/              # 로그인 필요 영역 (/me)
+    │   ├── error.tsx              # 클라이언트 에러 바운더리
+    │   ├── loading.tsx            # 로딩 스켈레톤
+    │   ├── not-found.tsx          # 404
+    │   ├── (auth)/                # 비로그인 영역
+    │   │   ├── login, signup
+    │   │   └── auth/{callback, signout, check-email}
+    │   ├── (authed)/              # 로그인 필요
+    │   │   ├── me/
+    │   │   └── board/[slug]/{new, [postId]/edit}
+    │   └── (public)/              # 누구나 읽기
+    │       └── board/{., [slug], [slug]/[postId]}
     ├── components/
     │   ├── layout/site-header.tsx
-    │   └── auth/user-menu.tsx
+    │   ├── auth/user-menu.tsx
+    │   ├── markdown/{markdown-renderer, markdown-editor}.tsx
+    │   ├── board/{post-card, comment-tree/item, comment-form, like-button, ...}.tsx
+    │   └── ui/pagination.tsx
     ├── lib/
-    │   ├── supabase/              # server / browser / proxy / admin 클라이언트
-    │   ├── auth/                  # getCurrentUser, requireUser
-    │   ├── validation/            # zod 스키마
+    │   ├── supabase/              # env / server / browser / proxy / admin 클라이언트
+    │   ├── auth/                  # getCurrentUser, requireUser/Profile/Admin
+    │   ├── db/                    # posts.ts, comments.ts (PostgREST embed)
+    │   ├── validation/            # zod 스키마 (auth, post, comment)
+    │   ├── markdown/sanitize-schema.ts
+    │   ├── format.ts              # Intl 기반 한국어 날짜
+    │   ├── constants.ts           # BOARD_LABELS, isBoardSlug 가드, PAGE_SIZE
     │   └── types.ts
-    └── actions/auth.ts            # 'use server' — signIn / signUp
+    └── actions/                   # 'use server'
+        ├── auth.ts (signIn / signUp)
+        ├── posts.ts (create / update / delete / incrementView)
+        ├── comments.ts (create / delete)
+        └── likes.ts (toggle)
 ```
 
 ---
