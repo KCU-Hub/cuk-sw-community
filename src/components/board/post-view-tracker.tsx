@@ -3,11 +3,8 @@
 import { useEffect, useRef } from "react";
 import { incrementPostViewAction } from "@/actions/posts";
 
-// 24 hours — same browser revisits within this window do not re-bump the
-// counter. The RPC is also a defense-in-depth target (anyone with the post id
-// can call it), so this only protects against accidental inflation; a
-// determined caller can clear localStorage. Server-side dedupe by IP/session
-// is the proper fix and is tracked in review.md (P0).
+// Client-side 24h throttle — saves a round trip on same-browser revisits.
+// The server-side `post_view_log` is the authoritative dedupe.
 const VIEW_TTL_MS = 24 * 60 * 60 * 1000;
 const STORAGE_PREFIX = "cuksw:view:";
 

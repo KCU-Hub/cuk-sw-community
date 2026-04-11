@@ -1,10 +1,17 @@
 "use server";
 
+import { createHash } from "node:crypto";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-user";
-import { createPostSchema, updatePostSchema } from "@/lib/validation/post";
+import {
+  createPostSchema,
+  postIdSchema,
+  updatePostSchema,
+} from "@/lib/validation/post";
 import { isBoardSlug } from "@/lib/constants";
 
 function firstError(error: { issues: { message: string }[] }) {
@@ -95,7 +102,33 @@ export async function deletePostAction(formData: FormData) {
   redirect(`/board/${boardSlugRaw}`);
 }
 
+// `u:<uid>` when authed, `a:<sha256(ip|ua)[:32]>` when anon. Returns null
+// when anon without any stable identifier — in that case we silently skip
+// the bump so we don't pollute the log with identical empty keys.
+async function buildViewerKey(user: User | null): Promise<string | null> {
+  if (user) return `u:${user.id}`;
+
+  const h = await headers();
+  const forwardedFor = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  const ua = h.get("user-agent") ?? "";
+  if (!forwardedFor && !ua) return null;
+  const hash = createHash("sha256").update(`${forwardedFor}|${ua}`).digest("hex");
+  return `a:${hash.slice(0, 32)}`;
+}
+
 export async function incrementPostViewAction(postId: string) {
+  const parsed = postIdSchema.safeParse(postId);
+  if (!parsed.success) return;
+
   const supabase = await createClient();
-  await supabase.rpc("increment_post_view", { p_post_id: postId });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const viewerKey = await buildViewerKey(user);
+  if (!viewerKey) return;
+
+  await supabase.rpc("increment_post_view", {
+    p_post_id: parsed.data,
+    p_viewer_key: viewerKey,
+  });
 }
