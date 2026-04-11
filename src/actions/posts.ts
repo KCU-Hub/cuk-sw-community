@@ -13,6 +13,7 @@ import {
   updatePostSchema,
 } from "@/lib/validation/post";
 import { isBoardSlug } from "@/lib/constants";
+import { mapSupabaseError } from "@/lib/errors";
 
 function firstError(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "입력값을 확인해주세요.";
@@ -43,7 +44,7 @@ export async function createPostAction(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapSupabaseError(error));
 
   revalidatePath(`/board/${parsed.data.board_slug}`);
   redirect(`/board/${parsed.data.board_slug}/${data.id}`);
@@ -73,7 +74,7 @@ export async function updatePostAction(formData: FormData) {
     .update(parsed.data)
     .eq("id", postId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapSupabaseError(error));
 
   revalidatePath(`/board/${boardSlugRaw}`);
   revalidatePath(`/board/${boardSlugRaw}/${postId}`);
@@ -96,7 +97,7 @@ export async function deletePostAction(formData: FormData) {
     .update({ is_deleted: true })
     .eq("id", postId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapSupabaseError(error));
 
   revalidatePath(`/board/${boardSlugRaw}`);
   redirect(`/board/${boardSlugRaw}`);

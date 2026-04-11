@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-user";
 import { createCommentSchema } from "@/lib/validation/comment";
 import { isBoardSlug } from "@/lib/constants";
+import { mapSupabaseError } from "@/lib/errors";
 
 function firstError(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "입력값을 확인해주세요.";
@@ -40,7 +41,7 @@ export async function createCommentAction(formData: FormData) {
     author_id: profile.id,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapSupabaseError(error));
 
   revalidatePath(`/board/${boardSlugRaw}/${parsed.data.post_id}`);
 }
@@ -62,7 +63,7 @@ export async function deleteCommentAction(formData: FormData) {
     .update({ is_deleted: true, content: "[삭제된 댓글]" })
     .eq("id", commentId);
 
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mapSupabaseError(error));
 
   revalidatePath(`/board/${boardSlugRaw}/${postId}`);
 }
