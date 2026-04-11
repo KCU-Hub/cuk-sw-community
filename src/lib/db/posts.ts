@@ -51,13 +51,14 @@ export async function getPostsByBoard(
   };
 }
 
+// Visibility is enforced by RLS (`is_deleted = false OR author OR admin`).
+// Callers must handle `post.is_deleted` themselves.
 export async function getPostById(id: string): Promise<PostWithAuthor | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("posts")
     .select(POST_AUTHOR_SELECT)
     .eq("id", id)
-    .eq("is_deleted", false)
     .maybeSingle();
   if (error) throw error;
   return (data as unknown as PostWithAuthor | null) ?? null;

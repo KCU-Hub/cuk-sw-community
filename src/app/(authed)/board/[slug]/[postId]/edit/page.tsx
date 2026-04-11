@@ -27,6 +27,10 @@ export default async function EditPostPage({
     redirect(`/board/${slug}/${postId}`);
   }
 
+  if (post.is_deleted) {
+    redirect(`/board/${slug}/${postId}`);
+  }
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
       <h1 className="text-2xl font-bold tracking-tight">게시글 수정</h1>
