@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema } from "@/lib/validation/auth";
+import { mapSupabaseError } from "@/lib/errors";
 
 function redirectWithError(path: string, message: string): never {
   redirect(`${path}?${new URLSearchParams({ error: message })}`);
@@ -22,7 +23,7 @@ export async function signInAction(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
-  if (error) redirectWithError("/login", error.message);
+  if (error) redirectWithError("/login", mapSupabaseError(error));
 
   revalidatePath("/", "layout");
   redirect("/me");
@@ -44,7 +45,7 @@ export async function signUpAction(formData: FormData) {
     password: parsed.data.password,
   });
 
-  if (error) redirectWithError("/signup", error.message);
+  if (error) redirectWithError("/signup", mapSupabaseError(error));
 
   revalidatePath("/", "layout");
   // Supabase returns `session: null` when email confirmation is enabled —

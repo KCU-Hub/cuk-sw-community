@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { postIdSchema } from "@/lib/validation/post";
 
 export const createCommentSchema = z.object({
-  post_id: z.string().uuid({ message: "올바른 게시글이 아닙니다." }),
+  post_id: postIdSchema,
   parent_id: z.string().uuid().nullable().optional(),
   content: z
     .string()

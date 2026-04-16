@@ -11,6 +11,11 @@ import { DeletePostButton } from "@/components/board/delete-post-button";
 import { PostViewTracker } from "@/components/board/post-view-tracker";
 import { formatDateTimeKo } from "@/lib/format";
 import { isBoardSlug } from "@/lib/constants";
+import type { Board, BoardSlug, PostWithAuthor } from "@/lib/types";
+
+function authorNameOf(post: PostWithAuthor): string {
+  return post.author?.display_name || post.author?.username || "알 수 없음";
+}
 
 export default async function PostDetailPage({
   params,
@@ -20,22 +25,37 @@ export default async function PostDetailPage({
   const { slug, postId } = await params;
   if (!isBoardSlug(slug)) notFound();
 
-  const [post, board, comments, profile] = await Promise.all([
-    getPostById(postId),
-    getBoardBySlug(slug),
-    getCommentsByPost(postId),
-    getCurrentProfile(),
+  // Kick off the slow queries before awaiting profile so they overlap with
+  // the profile fetch. `liked` is the only query that depends on profile.id,
+  // so it starts one tick later but still joins the same Promise.all.
+  const postPromise = getPostById(postId);
+  const boardPromise = getBoardBySlug(slug);
+  const commentsPromise = getCommentsByPost(postId);
+  const profile = await getCurrentProfile();
+  const likedPromise = profile
+    ? hasUserLikedPost(postId, profile.id)
+    : Promise.resolve(false);
+
+  const [post, board, comments, liked] = await Promise.all([
+    postPromise,
+    boardPromise,
+    commentsPromise,
+    likedPromise,
   ]);
 
   if (!post || post.board_slug !== slug || !board) notFound();
 
-  const liked = profile ? await hasUserLikedPost(postId, profile.id) : false;
-  const tree = buildCommentTree(comments);
   const isAuthor = profile?.id === post.author_id;
   const isAdmin = profile?.role === "admin";
+
+  if (post.is_deleted) {
+    // Defense-in-depth against future RLS relaxation.
+    if (!isAuthor && !isAdmin) notFound();
+    return <DeletedPostView post={post} board={board} slug={slug} />;
+  }
+
+  const tree = buildCommentTree(comments);
   const canEdit = isAuthor || isAdmin;
-  const authorName =
-    post.author?.display_name || post.author?.username || "알 수 없음";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
@@ -52,7 +72,7 @@ export default async function PostDetailPage({
       </h1>
 
       <div className="mt-3 flex items-center gap-3 text-sm text-zinc-500">
-        <span className="font-medium text-zinc-700">{authorName}</span>
+        <span className="font-medium text-zinc-700">{authorNameOf(post)}</span>
         <span aria-hidden>·</span>
         <time dateTime={post.created_at}>{formatDateTimeKo(post.created_at)}</time>
         <span aria-hidden>·</span>
@@ -116,6 +136,50 @@ export default async function PostDetailPage({
           )}
         </div>
       </section>
+    </main>
+  );
+}
+
+function DeletedPostView({
+  post,
+  board,
+  slug,
+}: {
+  post: PostWithAuthor;
+  board: Board;
+  slug: BoardSlug;
+}) {
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-12">
+      <div className="text-sm text-zinc-500">
+        <Link href={`/board/${slug}`} className="hover:text-brand-700">
+          {board.name}
+        </Link>
+      </div>
+
+      <div
+        role="status"
+        className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700"
+      >
+        <p className="font-medium">삭제된 게시글입니다.</p>
+        <p className="mt-1 text-zinc-500">
+          본인 또는 관리자만 열람할 수 있습니다. 댓글과 좋아요는 비활성화됩니다.
+        </p>
+      </div>
+
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">
+        {post.title}
+      </h1>
+
+      <div className="mt-3 flex items-center gap-3 text-sm text-zinc-500">
+        <span className="font-medium text-zinc-700">{authorNameOf(post)}</span>
+        <span aria-hidden>·</span>
+        <time dateTime={post.created_at}>{formatDateTimeKo(post.created_at)}</time>
+      </div>
+
+      <article className="mt-8 border-y border-zinc-100 py-8">
+        <MarkdownRenderer content={post.content} />
+      </article>
     </main>
   );
 }

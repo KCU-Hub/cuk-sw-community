@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-user";
 import { isBoardSlug } from "@/lib/constants";
-
-// Postgres unique violation — emitted when (post_id, user_id) already exists.
-// PostgREST surfaces this as code "23505".
-const PG_UNIQUE_VIOLATION = "23505";
+import { mapSupabaseError, PG_ERROR_CODES } from "@/lib/errors";
 
 export async function toggleLikeAction(formData: FormData) {
   const profile = await requireProfile();
@@ -20,18 +17,16 @@ export async function toggleLikeAction(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Try insert-first. If the row already exists (race or double click), the
-  // unique constraint on (post_id, user_id) raises 23505 and we treat that as
-  // "user wants to unlike". This collapses the previous select → insert/delete
-  // round trip into one query and removes the race window where two parallel
-  // calls could both observe "no row" and then both insert.
+  // Insert-first: unique (post_id, user_id) means the DB resolves races for
+  // us — parallel calls can't both insert, and a 23505 on retry means the
+  // user is toggling off. Collapses the old select → branch into one query.
   const { error: insertError } = await supabase
     .from("post_likes")
     .insert({ post_id: postId, user_id: profile.id });
 
   if (insertError) {
-    if (insertError.code !== PG_UNIQUE_VIOLATION) {
-      throw new Error(insertError.message);
+    if (insertError.code !== PG_ERROR_CODES.UNIQUE_VIOLATION) {
+      throw new Error(mapSupabaseError(insertError));
     }
     // Already liked → toggle off.
     const { error: deleteError } = await supabase
@@ -39,7 +34,7 @@ export async function toggleLikeAction(formData: FormData) {
       .delete()
       .eq("post_id", postId)
       .eq("user_id", profile.id);
-    if (deleteError) throw new Error(deleteError.message);
+    if (deleteError) throw new Error(mapSupabaseError(deleteError));
   }
 
   revalidatePath(`/board/${boardSlugRaw}/${postId}`);
