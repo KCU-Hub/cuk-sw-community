@@ -45,6 +45,10 @@ export async function getPostsByBoard(
     .range(from, to);
 
   if (error) throw error;
+  // PostgREST embed (`author:profiles!author_id(...)`) 는 supabase-js
+  // 의 `.select(literal-string)` 타입 추론 범위 밖이라 `data` 가
+  // `any[]` 로 좁혀진다. generated 타입 도입 후에도 embed relation 은
+  // 수동 타입이 필요해 캐스트 자체는 남음.
   return {
     posts: (data ?? []) as unknown as PostWithAuthor[],
     total: count ?? 0,

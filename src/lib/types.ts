@@ -1,6 +1,9 @@
 // Shared application types.
-// Once `supabase gen types typescript` is wired up (Phase 2), these will be
-// re-exported from the generated `database.types.ts` instead.
+//
+// Base row types are currently handwritten. Run `npm run types:gen:local`
+// (requires running Supabase) to generate `src/lib/types.generated.ts`,
+// then migrate these to re-export from the generated file. Domain types
+// (PostWithAuthor, CommentNode) will stay in this file.
 
 export type UserRole = "user" | "admin";
 
