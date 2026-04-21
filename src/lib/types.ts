@@ -14,6 +14,11 @@ export type Profile = {
   avatar_url: string | null;
   bio: string | null;
   role: UserRole;
+  // 영구 ban. banned_until 과 독립 — is_banned=true 면 만료 없음.
+  is_banned: boolean;
+  // 만료 시각 (미래 timestamptz). null 또는 과거면 ban 해제 상태.
+  banned_until: string | null;
+  ban_reason: string | null;
   created_at: string;
   updated_at: string;
 };
