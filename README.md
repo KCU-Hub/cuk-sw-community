@@ -94,7 +94,24 @@ npm run dev
 
 http://localhost:3000 으로 접속.
 
-### 7. (권장) 타입 생성
+### 7. (권장) OAuth 프로바이더 연결
+
+학부 학생들의 가입 장벽을 줄이기 위해 **Google / Kakao** 소셜 로그인을
+권장합니다. Supabase 대시보드 기준 세팅:
+
+1. **Authentication → Providers** → `Google` / `Kakao` 활성화
+2. 각 프로바이더 콘솔에서 OAuth 클라이언트 발급 후 Client ID/Secret 입력
+3. **Redirect URL** 로 아래 두 개 모두 등록:
+   - `http://localhost:3000/auth/callback` (개발)
+   - `https://<배포-도메인>/auth/callback` (프로덕션)
+4. Supabase 의 **Site URL** 을 배포 도메인으로 설정 (`.env.local` 의
+   `NEXT_PUBLIC_SITE_URL` 과 일치해야 합니다 — OAuth 초기화가 이 값을
+   `redirectTo` 로 보내기 때문).
+
+코드 쪽은 이미 `signInWithProviderAction` + `<OAuthButtons>` 이 붙어
+있어 프로바이더만 켜면 바로 `/login` / `/signup` 에서 버튼이 동작합니다.
+
+### 8. (권장) 타입 생성
 
 마이그레이션을 추가/수정한 뒤엔 Supabase 스키마와 TypeScript 타입의 드리프트를
 막기 위해 타입을 재생성해주세요. 결과물 (`src/lib/types.generated.ts`) 은 커밋

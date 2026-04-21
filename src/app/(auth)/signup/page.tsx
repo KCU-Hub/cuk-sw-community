@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signUpAction } from "@/actions/auth";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export const metadata = {
   title: "회원가입",
@@ -72,6 +73,8 @@ export default async function SignupPage({
             회원가입
           </button>
         </form>
+
+        <OAuthButtons intent="signup" />
 
       <p className="mt-6 text-center text-sm text-zinc-500">
         이미 계정이 있으신가요?{" "}
