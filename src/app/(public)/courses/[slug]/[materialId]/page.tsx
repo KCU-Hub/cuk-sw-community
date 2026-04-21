@@ -2,15 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getCourseBySlug,
+  getCourseFilePublicUrl,
   getCourseMaterialById,
-  publicCourseFileUrl,
 } from "@/lib/db/courses";
 import { getCurrentProfile } from "@/lib/auth/get-user";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { deleteCourseMaterialAction } from "@/actions/course-material";
 import { formatDateTimeKo } from "@/lib/format";
 import { formatAuthorName } from "@/lib/author";
-import { getPublicSupabaseEnv } from "@/lib/supabase/env";
 import { MATERIAL_TYPE_LABELS } from "@/lib/types";
 
 export async function generateMetadata({
@@ -43,9 +42,8 @@ export default async function CourseMaterialDetailPage({
 
   if (material.is_deleted && !canEdit) notFound();
 
-  const { url: supabaseUrl } = getPublicSupabaseEnv();
   const fileUrl = material.file_path
-    ? publicCourseFileUrl(supabaseUrl, material.file_path)
+    ? await getCourseFilePublicUrl(material.file_path)
     : null;
   const fileName = material.file_path?.split("/").pop() ?? null;
 

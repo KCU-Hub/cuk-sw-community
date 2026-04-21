@@ -134,7 +134,14 @@ export type Course = {
   sort_order: number;
 };
 
-export type MaterialType = "lecture" | "assignment" | "exam" | "link" | "other";
+export const MATERIAL_TYPES = [
+  "lecture",
+  "assignment",
+  "exam",
+  "link",
+  "other",
+] as const;
+export type MaterialType = (typeof MATERIAL_TYPES)[number];
 
 export const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   lecture: "강의",
@@ -143,6 +150,10 @@ export const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   link: "링크",
   other: "기타",
 };
+
+export function isMaterialType(value: string): value is MaterialType {
+  return (MATERIAL_TYPES as readonly string[]).includes(value);
+}
 
 export type CourseMaterial = {
   id: string;

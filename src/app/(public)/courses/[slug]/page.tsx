@@ -5,8 +5,7 @@ import { getCurrentProfile } from "@/lib/auth/get-user";
 import { Pagination } from "@/components/ui/pagination";
 import { formatRelativeKo } from "@/lib/format";
 import { formatAuthorName } from "@/lib/author";
-import { MATERIAL_TYPE_LABELS, type MaterialType } from "@/lib/types";
-import { MATERIAL_TYPES } from "@/lib/validation/course-material";
+import { MATERIAL_TYPES, MATERIAL_TYPE_LABELS, isMaterialType } from "@/lib/types";
 
 const PAGE_SIZE = 20;
 
@@ -18,10 +17,6 @@ export async function generateMetadata({
   const { slug } = await params;
   const course = await getCourseBySlug(slug);
   return { title: course?.name ?? "과목" };
-}
-
-function isMaterialType(v: string): v is MaterialType {
-  return (MATERIAL_TYPES as readonly string[]).includes(v);
 }
 
 export default async function CoursePage({

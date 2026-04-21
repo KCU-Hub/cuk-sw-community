@@ -1,10 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { AUTHOR_EMBED } from "@/lib/db/selects";
 import type { CommentNode, CommentWithAuthor } from "@/lib/types";
 
-const COMMENT_AUTHOR_SELECT = `
-  *,
-  author:profiles!author_id(id, username, display_name, avatar_url)
-`;
+const COMMENT_AUTHOR_SELECT = `*, ${AUTHOR_EMBED}`;
 
 export async function getCommentsByPost(
   postId: string,

@@ -7,10 +7,7 @@ import { createCommentSchema } from "@/lib/validation/comment";
 import { isBoardSlug } from "@/lib/constants";
 import { mapSupabaseError } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
-
-function firstError(error: { issues: { message: string }[] }) {
-  return error.issues[0]?.message ?? "입력값을 확인해주세요.";
-}
+import { firstError } from "@/lib/form";
 
 export async function createCommentAction(formData: FormData) {
   const profile = await requireProfile();

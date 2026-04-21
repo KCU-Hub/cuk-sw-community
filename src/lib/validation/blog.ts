@@ -3,6 +3,12 @@ import { z } from "zod";
 // slug: 소문자/숫자/하이픈, 80자 이내 — DB check constraint 와 동일 (0014)
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
+// tag slug 는 posts tag_slug 와 동일 규칙 — tag route 가드 등에서 재사용.
+export const TAG_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
+export function isTagSlug(value: string): boolean {
+  return TAG_SLUG_RE.test(value);
+}
+
 export const blogPostIdSchema = z
   .string()
   .uuid({ message: "올바른 글이 아닙니다." });
@@ -47,9 +53,7 @@ export const createBlogPostSchema = z.object({
     .array(
       z
         .string()
-        .min(1)
-        .max(40)
-        .regex(/^[a-z0-9-]+$/, { message: "tag slug 가 올바르지 않습니다." }),
+        .regex(TAG_SLUG_RE, { message: "tag slug 가 올바르지 않습니다." }),
     )
     .max(10, { message: "태그는 최대 10 개까지 달 수 있습니다." })
     .default([]),

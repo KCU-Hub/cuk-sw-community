@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { AUTHOR_EMBED } from "@/lib/db/selects";
 import type {
   BlogPost,
   BlogPostWithAuthor,
@@ -6,11 +7,21 @@ import type {
   Tag,
 } from "@/lib/types";
 
-// PostgREST 는 중첩 embed 까지 지원 — author, tags(M:N via blog_post_tags),
-// series 를 한 번에 가져와 N+1 회피.
+// author + tags (M:N) + series 를 한 번에 embed. tag 필터는 아래서
+// `blog_post_tags!inner` 로 bake 한 variant 를 따로 쓴다.
 const BLOG_POST_SELECT = `
   *,
-  author:profiles!author_id(id, username, display_name, avatar_url),
+  ${AUTHOR_EMBED},
+  blog_post_tags(tag_slug, tags(slug, name)),
+  series:blog_series(id, title)
+`;
+
+// tag 로 필터할 땐 inner join 으로 해당 태그가 붙은 post 만 outer 에
+// 남도록 하고, 표시용 tags 는 full outer embed 로 따로 붙여줌.
+const BLOG_POST_SELECT_TAG_FILTERED = `
+  *,
+  ${AUTHOR_EMBED},
+  tag_match:blog_post_tags!inner(tag_slug),
   blog_post_tags(tag_slug, tags(slug, name)),
   series:blog_series(id, title)
 `;
@@ -19,15 +30,20 @@ type RawBlogPostRow = BlogPost & {
   author: BlogPostWithAuthor["author"];
   blog_post_tags?: Array<{ tag_slug: string; tags: Tag | null }>;
   series: BlogPostWithAuthor["series"];
+  tag_match?: unknown;
 };
 
 function normalize(row: RawBlogPostRow): BlogPostWithAuthor {
   const tags: Tag[] = (row.blog_post_tags ?? [])
     .map((t) => t.tags)
     .filter((t): t is Tag => t !== null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { blog_post_tags: _drop, ...rest } = row;
-  return { ...rest, tags };
+  return {
+    ...row,
+    tags,
+    // embed-only 필드는 반환 타입에 없으므로 함께 덮어써 제거.
+    blog_post_tags: undefined,
+    tag_match: undefined,
+  } as BlogPostWithAuthor;
 }
 
 export async function listBlogPosts({
@@ -49,9 +65,10 @@ export async function listBlogPosts({
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  const select = tag ? BLOG_POST_SELECT_TAG_FILTERED : BLOG_POST_SELECT;
   let query = supabase
     .from("blog_posts")
-    .select(BLOG_POST_SELECT, { count: "exact" })
+    .select(select, { count: "exact" })
     .eq("is_deleted", false)
     .order("published_at", { ascending: false })
     .range(from, to);
@@ -60,50 +77,40 @@ export async function listBlogPosts({
   if (authorId) query = query.eq("author_id", authorId);
   if (seriesId) query = query.eq("series_id", seriesId);
   if (tag) {
-    // inner join — 해당 태그가 있는 post 만
-    query = query.filter("blog_post_tags.tag_slug", "eq", tag);
+    // `blog_post_tags!inner` 덕분에 이 eq 는 outer row 를 필터함 —
+    // count 도 태그-필터된 값으로 올바르게 반환됨.
+    query = query.eq("tag_match.tag_slug", tag);
   }
 
   const { data, error, count } = await query;
   if (error) throw error;
 
-  let posts = ((data ?? []) as unknown as RawBlogPostRow[]).map(normalize);
-
-  // `filter("blog_post_tags.tag_slug", "eq", tag)` 는 embed 에만 필터를 걸어
-  // 태그가 없는 post 도 `blog_post_tags: []` 로 돌아옴. 클라이언트에서 한번
-  // 더 걸러준다.
-  if (tag) {
-    posts = posts.filter((p) => p.tags.some((t) => t.slug === tag));
-  }
-
+  const posts = ((data ?? []) as unknown as RawBlogPostRow[]).map(normalize);
   return { posts, total: count ?? 0 };
 }
 
-// velog 스타일 /@{username}/{slug} 대응.
+// `/blog/{username}/{slug}` 한 번의 쿼리로 resolve.
+// `author:profiles!inner` 로 inner join 해서 username 까지 같이 필터.
+const BLOG_POST_SELECT_AUTHOR_INNER = `
+  *,
+  author:profiles!inner(id, username, display_name, avatar_url),
+  blog_post_tags(tag_slug, tags(slug, name)),
+  series:blog_series(id, title)
+`;
+
 export async function getBlogPostByAuthorSlug(
   username: string,
   slug: string,
 ): Promise<BlogPostWithAuthor | null> {
   const supabase = await createClient();
-
-  // author_id 조회 → blog_posts
-  const { data: author, error: authorError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("username", username)
-    .maybeSingle();
-  if (authorError) throw authorError;
-  if (!author) return null;
-
   const { data, error } = await supabase
     .from("blog_posts")
-    .select(BLOG_POST_SELECT)
-    .eq("author_id", (author as { id: string }).id)
+    .select(BLOG_POST_SELECT_AUTHOR_INNER)
     .eq("slug", slug)
+    .eq("author.username", username)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-
   return normalize(data as unknown as RawBlogPostRow);
 }
 
@@ -121,12 +128,15 @@ export async function getBlogPostById(
   return normalize(data as unknown as RawBlogPostRow);
 }
 
-export async function listTags(): Promise<Tag[]> {
+export async function listTags({ limit = 50 }: { limit?: number } = {}): Promise<
+  Tag[]
+> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tags")
     .select("slug, name")
-    .order("name");
+    .order("name")
+    .limit(limit);
   if (error) throw error;
   return (data ?? []) as Tag[];
 }

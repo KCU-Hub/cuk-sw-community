@@ -12,9 +12,17 @@ import {
 } from "@/lib/validation/course-material";
 import { mapSupabaseError } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { firstError } from "@/lib/form";
 
-function firstError(error: { issues: { message: string }[] }) {
-  return error.issues[0]?.message ?? "입력값을 확인해주세요.";
+// file_path 의 첫 segment 는 업로더 user_id 여야 하며 (Storage RLS 와 동일),
+// 로그인한 caller 의 profile.id 와 정확히 일치해야 한다. zod 는 형태만
+// 보장하고, 소유권은 여기서 강제.
+function assertFilePathOwnership(filePath: string, profileId: string): void {
+  if (!filePath) return;
+  const [first] = filePath.split("/");
+  if (first !== profileId) {
+    throw new Error("업로드 경로의 소유자와 계정이 일치하지 않습니다.");
+  }
 }
 
 export async function createCourseMaterialAction(formData: FormData) {
@@ -29,6 +37,7 @@ export async function createCourseMaterialAction(formData: FormData) {
     file_path: formData.get("file_path") ?? "",
   });
   if (!parsed.success) throw new Error(firstError(parsed.error));
+  assertFilePathOwnership(parsed.data.file_path ?? "", profile.id);
 
   // 자료 생성은 post_create rate limit 를 공유
   await enforceRateLimit(profile.id, "post_create");
@@ -54,7 +63,7 @@ export async function createCourseMaterialAction(formData: FormData) {
 }
 
 export async function updateCourseMaterialAction(formData: FormData) {
-  await requireProfile();
+  const profile = await requireProfile();
 
   const materialIdRaw = String(formData.get("materialId") ?? "");
   const courseSlugRaw = String(formData.get("course_slug") ?? "");
@@ -71,6 +80,7 @@ export async function updateCourseMaterialAction(formData: FormData) {
     file_path: formData.get("file_path") ?? "",
   });
   if (!parsed.success) throw new Error(firstError(parsed.error));
+  assertFilePathOwnership(parsed.data.file_path ?? "", profile.id);
 
   const supabase = await createClient();
   const { error } = await supabase

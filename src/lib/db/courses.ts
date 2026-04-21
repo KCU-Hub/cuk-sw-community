@@ -1,14 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { AUTHOR_EMBED } from "@/lib/db/selects";
 import type {
   Course,
   CourseMaterialWithAuthor,
   MaterialType,
 } from "@/lib/types";
 
-const MATERIAL_SELECT = `
-  *,
-  author:profiles!author_id(id, username, display_name, avatar_url)
-`;
+const MATERIAL_SELECT = `*, ${AUTHOR_EMBED}`;
+const COURSE_FILES_BUCKET = "course-files";
 
 export async function listCourses(): Promise<Course[]> {
   const supabase = await createClient();
@@ -90,12 +89,13 @@ export async function getCourseMaterialById(
   return (data as unknown as CourseMaterialWithAuthor | null) ?? null;
 }
 
-// Storage public URL — bucket 이 public=true 이므로 직접 URL 조립.
-// supabase-js 의 getPublicUrl 을 쓰면 env 에 의존해 그냥 컴포넌트에서
-// helper 호출.
-export function publicCourseFileUrl(
-  supabaseUrl: string,
-  path: string,
-): string {
-  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/course-files/${encodeURI(path)}`;
+// Storage public URL — bucket 은 public=true 라 서명 없이 접근 가능하지만
+// URL 조립은 supabase-js 의 getPublicUrl 에게 위임해 per-segment 인코딩
+// 차이를 피한다.
+export async function getCourseFilePublicUrl(path: string): Promise<string> {
+  const supabase = await createClient();
+  const { data } = supabase.storage
+    .from(COURSE_FILES_BUCKET)
+    .getPublicUrl(path);
+  return data.publicUrl;
 }

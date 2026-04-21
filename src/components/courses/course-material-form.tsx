@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { FileUploadInput } from "@/components/courses/file-upload-input";
-import { MATERIAL_TYPE_LABELS } from "@/lib/types";
-import { MATERIAL_TYPES } from "@/lib/validation/course-material";
+import { MATERIAL_TYPES, MATERIAL_TYPE_LABELS } from "@/lib/types";
 import type { CourseMaterialWithAuthor } from "@/lib/types";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
