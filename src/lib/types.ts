@@ -120,3 +120,44 @@ export type BlogPostWithAuthor = BlogPost & {
   tags: Tag[];
   series: Pick<BlogSeries, "id" | "title"> | null;
 };
+
+// =====================================================================
+// Phase 4 — 과목 자료실
+// =====================================================================
+
+export type Course = {
+  slug: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  semester_hint: string | null;
+  sort_order: number;
+};
+
+export type MaterialType = "lecture" | "assignment" | "exam" | "link" | "other";
+
+export const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
+  lecture: "강의",
+  assignment: "과제",
+  exam: "시험",
+  link: "링크",
+  other: "기타",
+};
+
+export type CourseMaterial = {
+  id: string;
+  course_slug: string;
+  author_id: string | null;
+  material_type: MaterialType;
+  title: string;
+  content: string;
+  external_url: string | null;
+  file_path: string | null;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CourseMaterialWithAuthor = CourseMaterial & {
+  author: Pick<Profile, "id" | "username" | "display_name" | "avatar_url"> | null;
+};
