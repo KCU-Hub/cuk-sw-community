@@ -77,3 +77,46 @@ export type CommentWithAuthor = Comment & {
 export type CommentNode = CommentWithAuthor & {
   children: CommentNode[];
 };
+
+// =====================================================================
+// Phase 3 — 블로그
+// =====================================================================
+
+export type Tag = {
+  slug: string;
+  name: string;
+};
+
+export type BlogSeries = {
+  id: string;
+  author_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BlogPost = {
+  id: string;
+  // null ⇢ 탈퇴한 사용자 (on delete set null)
+  author_id: string | null;
+  series_id: string | null;
+  slug: string;
+  title: string;
+  content: string;
+  excerpt: string | null;
+  cover_image: string | null;
+  is_published: boolean;
+  is_deleted: boolean;
+  like_count: number;
+  view_count: number;
+  published_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BlogPostWithAuthor = BlogPost & {
+  author: Pick<Profile, "id" | "username" | "display_name" | "avatar_url"> | null;
+  tags: Tag[];
+  series: Pick<BlogSeries, "id" | "title"> | null;
+};
