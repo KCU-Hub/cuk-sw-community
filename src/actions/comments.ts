@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/auth/require-user";
 import { createCommentSchema } from "@/lib/validation/comment";
 import { isBoardSlug } from "@/lib/constants";
 import { mapSupabaseError } from "@/lib/errors";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 function firstError(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "입력값을 확인해주세요.";
@@ -32,6 +33,8 @@ export async function createCommentAction(formData: FormData) {
   if (!parsed.success) {
     throw new Error(firstError(parsed.error));
   }
+
+  await enforceRateLimit(profile.id, "comment_create");
 
   const supabase = await createClient();
   const { error } = await supabase.from("comments").insert({

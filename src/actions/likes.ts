@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-user";
 import { isBoardSlug } from "@/lib/constants";
 import { mapSupabaseError, PG_ERROR_CODES } from "@/lib/errors";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function toggleLikeAction(formData: FormData) {
   const profile = await requireProfile();
@@ -14,6 +15,8 @@ export async function toggleLikeAction(formData: FormData) {
   if (!postId || !isBoardSlug(boardSlugRaw)) {
     throw new Error("잘못된 요청입니다.");
   }
+
+  await enforceRateLimit(profile.id, "like_toggle");
 
   const supabase = await createClient();
 
