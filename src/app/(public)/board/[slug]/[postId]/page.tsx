@@ -11,11 +11,8 @@ import { DeletePostButton } from "@/components/board/delete-post-button";
 import { PostViewTracker } from "@/components/board/post-view-tracker";
 import { formatDateTimeKo } from "@/lib/format";
 import { isBoardSlug } from "@/lib/constants";
+import { formatAuthorName } from "@/lib/author";
 import type { Board, BoardSlug, PostWithAuthor } from "@/lib/types";
-
-function authorNameOf(post: PostWithAuthor): string {
-  return post.author?.display_name || post.author?.username || "알 수 없음";
-}
 
 export default async function PostDetailPage({
   params,
@@ -72,7 +69,7 @@ export default async function PostDetailPage({
       </h1>
 
       <div className="mt-3 flex items-center gap-3 text-sm text-zinc-500">
-        <span className="font-medium text-zinc-700">{authorNameOf(post)}</span>
+        <span className="font-medium text-zinc-700">{formatAuthorName(post.author)}</span>
         <span aria-hidden>·</span>
         <time dateTime={post.created_at}>{formatDateTimeKo(post.created_at)}</time>
         <span aria-hidden>·</span>
@@ -172,7 +169,7 @@ function DeletedPostView({
       </h1>
 
       <div className="mt-3 flex items-center gap-3 text-sm text-zinc-500">
-        <span className="font-medium text-zinc-700">{authorNameOf(post)}</span>
+        <span className="font-medium text-zinc-700">{formatAuthorName(post.author)}</span>
         <span aria-hidden>·</span>
         <time dateTime={post.created_at}>{formatDateTimeKo(post.created_at)}</time>
       </div>

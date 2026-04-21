@@ -1,5 +1,6 @@
 import type { BoardSlug, CommentNode } from "@/lib/types";
 import { formatRelativeKo } from "@/lib/format";
+import { formatAuthorName } from "@/lib/author";
 import { CommentForm } from "./comment-form";
 import { DeleteCommentButton } from "./delete-comment-button";
 
@@ -20,8 +21,7 @@ export function CommentItem({
 }) {
   const isOwn = currentUserId === comment.author_id;
   const canDelete = isOwn || isAdmin;
-  const authorName =
-    comment.author?.display_name || comment.author?.username || "알 수 없음";
+  const authorName = formatAuthorName(comment.author);
 
   return (
     <div>
