@@ -6,6 +6,17 @@ const POST_AUTHOR_SELECT = `
   author:profiles!author_id(id, username, display_name, avatar_url)
 `;
 
+// Same as above but embeds the viewer's post_likes row (filtered at the
+// query level via .eq('post_likes.user_id', viewerId)). When the viewer
+// liked the post, `post_likes` comes back as `[{user_id: ...}]`; otherwise
+// `[]`. We collapse that into a boolean and drop the array from the result
+// so callers get a stable PostWithAuthor shape.
+const POST_AUTHOR_LIKED_SELECT = `
+  *,
+  author:profiles!author_id(id, username, display_name, avatar_url),
+  post_likes!left(user_id)
+`;
+
 export async function listBoards(): Promise<Board[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -57,27 +68,42 @@ export async function getPostsByBoard(
 
 // Visibility is enforced by RLS (`is_deleted = false OR author OR admin`).
 // Callers must handle `post.is_deleted` themselves.
-export async function getPostById(id: string): Promise<PostWithAuthor | null> {
+//
+// `viewerId`: when provided, collapses the viewer's post_likes row into
+// `liked_by_me` so callers don't need a separate round-trip. Logged-out
+// viewers pass `null` and `liked_by_me` stays `false`.
+export async function getPostById(
+  id: string,
+  viewerId?: string | null,
+): Promise<PostWithAuthor | null> {
   const supabase = await createClient();
+
+  if (!viewerId) {
+    const { data, error } = await supabase
+      .from("posts")
+      .select(POST_AUTHOR_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return { ...(data as unknown as PostWithAuthor), liked_by_me: false };
+  }
+
   const { data, error } = await supabase
     .from("posts")
-    .select(POST_AUTHOR_SELECT)
+    .select(POST_AUTHOR_LIKED_SELECT)
     .eq("id", id)
+    .eq("post_likes.user_id", viewerId)
     .maybeSingle();
   if (error) throw error;
-  return (data as unknown as PostWithAuthor | null) ?? null;
-}
+  if (!data) return null;
 
-export async function hasUserLikedPost(
-  postId: string,
-  userId: string,
-): Promise<boolean> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("post_likes")
-    .select("post_id")
-    .eq("post_id", postId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  return !!data;
+  // post_likes 는 filter 때문에 [] 또는 [{user_id: viewerId}] 중 하나.
+  const row = data as unknown as PostWithAuthor & {
+    post_likes?: Array<{ user_id: string }>;
+  };
+  const liked = (row.post_likes?.length ?? 0) > 0;
+  const { post_likes: _drop, ...rest } = row;
+  void _drop;
+  return { ...rest, liked_by_me: liked };
 }

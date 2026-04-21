@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getBoardBySlug, getPostById, hasUserLikedPost } from "@/lib/db/posts";
+import { getBoardBySlug, getPostById } from "@/lib/db/posts";
 import { getCommentsByPost, buildCommentTree } from "@/lib/db/comments";
 import { getCurrentProfile } from "@/lib/auth/get-user";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
@@ -22,22 +22,15 @@ export default async function PostDetailPage({
   const { slug, postId } = await params;
   if (!isBoardSlug(slug)) notFound();
 
-  // Kick off the slow queries before awaiting profile so they overlap with
-  // the profile fetch. `liked` is the only query that depends on profile.id,
-  // so it starts one tick later but still joins the same Promise.all.
-  const postPromise = getPostById(postId);
-  const boardPromise = getBoardBySlug(slug);
-  const commentsPromise = getCommentsByPost(postId);
+  // Profile first so we can embed the viewer's liked state in the post
+  // query (see getPostById viewerId param) — saves the extra round-trip
+  // we used to do via hasUserLikedPost().
   const profile = await getCurrentProfile();
-  const likedPromise = profile
-    ? hasUserLikedPost(postId, profile.id)
-    : Promise.resolve(false);
 
-  const [post, board, comments, liked] = await Promise.all([
-    postPromise,
-    boardPromise,
-    commentsPromise,
-    likedPromise,
+  const [post, board, comments] = await Promise.all([
+    getPostById(postId, profile?.id ?? null),
+    getBoardBySlug(slug),
+    getCommentsByPost(postId),
   ]);
 
   if (!post || post.board_slug !== slug || !board) notFound();
@@ -85,7 +78,7 @@ export default async function PostDetailPage({
           postId={postId}
           boardSlug={slug}
           initialLikeCount={post.like_count}
-          initialLiked={liked}
+          initialLiked={post.liked_by_me ?? false}
           disabled={!profile}
         />
         {canEdit && (
