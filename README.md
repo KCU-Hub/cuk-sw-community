@@ -2,9 +2,9 @@
 
 고려사이버대학교 소프트웨어학부 학생들을 위한 **커뮤니티 + 블로그 + 과목 자료실** 플랫폼.
 
-- **Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Auth + Postgres + RLS)
+- **Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Auth + Postgres + RLS + Storage)
 - **별도 백엔드 없음**: Server Actions 가 API 역할, Supabase RLS 가 권한 경계.
-- **5단계 phase 로 점진적 구축** — 현재 **Phase 2 (포럼)** 완료.
+- **5 Phase 모두 구현 완료** — 배포 전 디버깅 라운드 진행 중.
 
 ---
 
@@ -13,10 +13,10 @@
 | Phase | 상태 | 내용 |
 | --- | --- | --- |
 | 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, /me, profiles/boards/courses/tags 시드, error/loading/404, 이메일 확인 플로우, a11y |
-| 2. 포럼 | ✅ | posts/comments/post_likes, RLS, 마크다운 렌더링 (react-markdown + sanitize + highlight.js), 게시판 목록/상세/작성/수정, 댓글 트리, 좋아요 (optimistic), 조회수 RPC |
-| 3. 블로그 | ⏳ | blog_posts/tags/시리즈, velog 스타일 |
-| 4. 과목 자료실 | ⏳ | course_materials, 검색 |
-| 5. 관리자 + OAuth + 마무리 | ⏳ | 고급 admin 콘솔 (사용자 ban/삭제/리셋 + audit_logs), Google/Kakao OAuth, 테스트, 폴리싱 |
+| 2. 포럼 | ✅ | posts/comments/post_likes, RLS, 마크다운 (sanitize + highlight.js), 게시판 목록/상세/작성/수정, 댓글 트리 + depth cap, 좋아요 (optimistic), 조회수 dedupe |
+| 3. 블로그 | ✅ | blog_posts / blog_series / blog_post_tags, velog 스타일 카드 + 태그 + 시리즈, draft 지원, view count |
+| 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB), 종류 필터 |
+| 5. 관리자 + OAuth + 마무리 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, /admin/users 콘솔, CSP/보안 헤더, sanitize 회귀 테스트 (vitest) |
 
 ---
 
@@ -161,50 +161,96 @@ generated 로 이관할 예정입니다.
 - [x] 소프트 삭제된 글은 본인/관리자만 배너와 함께 열람 가능 (좋아요/댓글 비활성)
 - [x] 탈퇴한 사용자의 게시글/댓글은 "탈퇴한 사용자" 로 렌더 (author_id = null)
 
+### Phase 3 (블로그)
+
+- [ ] `/blog` 에서 최신 발행글 카드 그리드 + 태그 클라우드
+- [ ] `/blog/new` 에서 제목/본문/태그 입력 → 발행 → `/blog/{username}/{slug}` 이동
+- [ ] slug 를 비우면 제목 기반으로 자동 생성 (한글 제목은 `post-xxxx` fallback)
+- [ ] `/blog/{username}` 에서 저자 프로필 + 본인이면 draft 포함 목록
+- [ ] 태그 클릭 → `/blog/tag/{slug}` 에서 해당 태그 글만
+- [ ] 상세에서 마크다운 + 코드 하이라이트 + view 카운트 (24h dedupe)
+- [ ] 시리즈 지정 시 상세 하단에 시리즈 목차 nav
+- [ ] draft 저장 → 비로그인/타계정 방문 시 404, 본인은 DRAFT 배너와 함께 열람
+
+### Phase 4 (과목 자료실)
+
+- [ ] `/courses` 에 10 개 과목 (0003 시드) 카드 표시
+- [ ] `/courses/{slug}` 에서 종류 필터 + 검색 (tsvector `simple` dict)
+- [ ] `/courses/{slug}/new` 에서 파일 업로드 (20 MB 이내) → Supabase Storage 에 저장, 반환 path 가 hidden input 으로 서버 액션에 전달
+- [ ] 상세에서 첨부파일 공개 URL / 외부 링크 / 마크다운 본문 표시
+- [ ] 본인/admin 만 수정/삭제 노출
+- [ ] ban 된 계정은 업로드 / 자료 등록 모두 RLS 거부
+
+### Phase 5 (관리자 / 배포 준비)
+
+- [ ] Google/Kakao OAuth 로 로그인 가능 (Supabase Dashboard 설정 필요 — 아래 7번 항목)
+- [ ] `/admin/users` 에서 사용자 검색 + ban(1d/7d/30d/permanent) + 사유 + 해제
+- [ ] ban 된 계정으로 글/댓글/좋아요 시도 시 '권한이 없습니다'
+- [ ] 같은 계정으로 1분 내 6번 글쓰기 → 6번째부터 rate limit 차단
+- [ ] 브라우저 DevTools 에서 CSP / X-Frame-Options / Permissions-Policy 헤더 5개 확인
+- [ ] jsdelivr.net 네트워크 요청 0건 (Pretendard self-host)
+- [ ] `<script>`, `<img onerror>`, `javascript:` href 등 XSS 페이로드 입력 → 렌더 결과에서 제거됨 (sanitize 테스트 15건 회귀 가드)
+
 ---
 
-## 디렉토리 구조 (Phase 2 시점)
+## 디렉토리 구조
 
 ```
 cuk-sw-community/
 ├── proxy.ts                       # Next 16: middleware → proxy. Supabase 세션 갱신
+├── next.config.ts                 # CSP + 보안 헤더 5종
 ├── supabase/
-│   └── migrations/                # 0001~0005 SQL (Phase 1 init/RLS/seed + Phase 2 forum/RLS)
+│   └── migrations/                # 0001 ~ 0015 (Phase 1~5)
 └── src/
     ├── app/
-    │   ├── layout.tsx             # 사이트 헤더 + Pretendard + 메타데이터
+    │   ├── layout.tsx             # Pretendard self-host + 메타데이터
     │   ├── page.tsx               # 랜딩
-    │   ├── error.tsx              # 클라이언트 에러 바운더리
-    │   ├── loading.tsx            # 로딩 스켈레톤
-    │   ├── not-found.tsx          # 404
-    │   ├── (auth)/                # 비로그인 영역
-    │   │   ├── login, signup
-    │   │   └── auth/{callback, signout, check-email}
+    │   ├── error.tsx, loading.tsx, not-found.tsx
+    │   ├── fonts/                 # PretendardVariable.woff2 (self-hosted)
+    │   ├── (auth)/                # 비로그인 영역 (login/signup + OAuth)
     │   ├── (authed)/              # 로그인 필요
     │   │   ├── me/
-    │   │   └── board/[slug]/{new, [postId]/edit}
+    │   │   ├── admin/users/       # ban/unban + audit
+    │   │   ├── board/[slug]/{new, [postId]/edit}
+    │   │   ├── blog/new, blog/[username]/[slug]/edit
+    │   │   └── courses/[slug]/{new, [materialId]/edit}
     │   └── (public)/              # 누구나 읽기
-    │       └── board/{., [slug], [slug]/[postId]}
+    │       ├── board/{., [slug], [slug]/[postId]}
+    │       ├── blog/{., [username], [username]/[slug], tag/[tag]}
+    │       └── courses/{., [slug], [slug]/[materialId]}
     ├── components/
     │   ├── layout/site-header.tsx
-    │   ├── auth/user-menu.tsx
+    │   ├── auth/{user-menu, oauth-buttons}.tsx
     │   ├── markdown/{markdown-renderer, markdown-editor}.tsx
     │   ├── board/{post-card, comment-tree/item, comment-form, like-button, ...}.tsx
+    │   ├── blog/{blog-card, blog-post-form, blog-view-tracker}.tsx
+    │   ├── courses/{course-material-form, file-upload-input}.tsx
+    │   ├── admin/user-row.tsx
     │   └── ui/pagination.tsx
     ├── lib/
     │   ├── supabase/              # env / server / browser / proxy / admin 클라이언트
     │   ├── auth/                  # getCurrentUser, requireUser/Profile/Admin
-    │   ├── db/                    # posts.ts, comments.ts (PostgREST embed)
-    │   ├── validation/            # zod 스키마 (auth, post, comment)
+    │   ├── db/                    # posts, comments, blog, courses, admin (PostgREST embed)
+    │   ├── validation/            # zod (auth, post, comment, blog, course-material)
     │   ├── markdown/sanitize-schema.ts
-    │   ├── format.ts              # Intl 기반 한국어 날짜
-    │   ├── constants.ts           # BOARD_LABELS, isBoardSlug 가드, PAGE_SIZE
+    │   ├── __tests__/rate-limit.test.ts
+    │   ├── markdown/__tests__/sanitize.test.ts
+    │   ├── db/__tests__/build-comment-tree.test.ts
+    │   ├── rate-limit.ts          # sliding-window pure fn + enforcer
+    │   ├── author.ts              # formatAuthorName (탈퇴 사용자 라벨)
+    │   ├── format.ts              # Intl 한국어 날짜
+    │   ├── errors.ts              # mapSupabaseError + SQLSTATE 상수
+    │   ├── constants.ts           # BOARD_SLUGS/isBoardSlug, PAGE_SIZE, depth cap
     │   └── types.ts
     └── actions/                   # 'use server'
-        ├── auth.ts (signIn / signUp)
+        ├── auth.ts (signIn / signUp / signInWithProvider)
         ├── posts.ts (create / update / delete / incrementView)
         ├── comments.ts (create / delete)
-        └── likes.ts (toggle)
+        ├── likes.ts (toggle)
+        ├── blog.ts (create / update / delete / incrementBlogView)
+        ├── course-material.ts (create / update / delete)
+        ├── admin.ts (banUser / unbanUser)
+        └── README.md (revalidatePath 정책)
 ```
 
 ---
