@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest",
+    "test:run": "vitest run",
     "types:gen:local": "supabase gen types typescript --local --schema public > src/lib/types.generated.ts",
     "types:gen:remote": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/lib/types.generated.ts"
   },
@@ -33,7 +35,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "rehype-parse": "^9.0.1",
+    "rehype-stringify": "^10.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "unified": "^11.0.5",
+    "vitest": "^4.1.4"
   }
 }

@@ -1,7 +1,18 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import { SiteHeader } from "@/components/layout/site-header";
 import "./globals.css";
 import "highlight.js/styles/github-dark.min.css";
+
+// Self-host Pretendard via next/font/local so we don't depend on
+// jsdelivr CDN (→ simpler CSP, no font FOIT on cold cache, no third-party
+// privacy footprint). Variable file taken from npm `pretendard@1.3.9`.
+const pretendard = localFont({
+  src: "./fonts/PretendardVariable.woff2",
+  variable: "--font-pretendard",
+  display: "swap",
+  weight: "45 920",
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const SITE_NAME = "CUK SW Community";
@@ -36,13 +47,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
-        />
-      </head>
+    <html lang="ko" suppressHydrationWarning className={pretendard.variable}>
       <body className="grid min-h-screen grid-rows-[auto_1fr] bg-white text-zinc-900 antialiased">
         <a
           href="#main-content"
