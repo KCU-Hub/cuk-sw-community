@@ -1,0 +1,85 @@
+import { createClient } from "@/lib/supabase/server";
+
+export type RateAction = "post_create" | "comment_create" | "like_toggle";
+
+export interface RateLimit {
+  perMinute: number;
+  perHour: number;
+}
+
+// 학부 규모 (2026) 기준 — 정상 사용은 이 한도 안쪽, bot spam 만 차단.
+// 필요 시 admin 이 DB 의 값을 조정할 수 있게 config 테이블로 이관 예정.
+export const RATE_LIMITS: Record<RateAction, RateLimit> = {
+  post_create:    { perMinute: 5,  perHour: 30  },
+  comment_create: { perMinute: 10, perHour: 100 },
+  like_toggle:    { perMinute: 30, perHour: 300 },
+};
+
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+
+export type RateLimitDecision =
+  | { ok: true }
+  | { ok: false; reason: "minute" | "hour" };
+
+// Pure function — given raw event timestamps + now + limit config, decide
+// whether a new event should be admitted. Extracted so the policy is unit
+// testable without a Supabase client.
+export function decideRateLimit(
+  events: Date[],
+  now: Date,
+  limits: RateLimit,
+): RateLimitDecision {
+  const nowMs = now.getTime();
+  let minuteCount = 0;
+  let hourCount = 0;
+  for (const e of events) {
+    const t = e.getTime();
+    if (t >= nowMs - HOUR_MS) hourCount += 1;
+    if (t >= nowMs - MINUTE_MS) minuteCount += 1;
+  }
+  if (minuteCount >= limits.perMinute) return { ok: false, reason: "minute" };
+  if (hourCount >= limits.perHour) return { ok: false, reason: "hour" };
+  return { ok: true };
+}
+
+// Throws if the user has exceeded the limit; otherwise records the event
+// and returns. Callers invoke this as the first real side-effect inside a
+// server action so that rate-limit errors surface before any DB mutation.
+export async function enforceRateLimit(
+  userId: string,
+  action: RateAction,
+): Promise<void> {
+  const supabase = await createClient();
+  const limits = RATE_LIMITS[action];
+  const now = new Date();
+  const oneHourAgoIso = new Date(now.getTime() - HOUR_MS).toISOString();
+
+  // 단일 fetch 로 최근 1h 이벤트를 가져오고 메모리에서 분류 — 두 번의
+  // count() 쿼리보다 DB round-trip 이 하나 적고, 분/시간 임계치 대비
+  // 학부 규모에선 자릿수가 수십 건 이내라 payload 도 가벼움.
+  const { data, error } = await supabase
+    .from("rate_limit_events")
+    .select("created_at")
+    .eq("user_id", userId)
+    .eq("action", action)
+    .gte("created_at", oneHourAgoIso);
+
+  if (error) throw error;
+
+  const events = (data ?? []).map((r) => new Date(r.created_at as string));
+  const decision = decideRateLimit(events, now, limits);
+
+  if (!decision.ok) {
+    throw new Error(
+      decision.reason === "minute"
+        ? "요청이 너무 빠릅니다. 잠시 후 다시 시도해주세요."
+        : "1시간 이내 허용 요청 수를 초과했습니다. 나중에 다시 시도해주세요.",
+    );
+  }
+
+  const { error: insertError } = await supabase
+    .from("rate_limit_events")
+    .insert({ user_id: userId, action });
+  if (insertError) throw insertError;
+}
