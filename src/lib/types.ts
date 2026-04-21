@@ -22,6 +22,7 @@ export type Board = {
   name: string;
   description: string | null;
   sort_order: number;
+  is_admin_only: boolean;
 };
 
 export type Post = {

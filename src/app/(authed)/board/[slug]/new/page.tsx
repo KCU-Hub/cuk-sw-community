@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/require-user";
 import { createPostAction } from "@/actions/posts";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
-import { BOARD_LABELS, isBoardSlug } from "@/lib/constants";
+import { getBoardBySlug } from "@/lib/db/posts";
+import { isBoardSlug } from "@/lib/constants";
 
 export default async function NewPostPage({
   params,
@@ -13,10 +14,13 @@ export default async function NewPostPage({
   const { slug } = await params;
   if (!isBoardSlug(slug)) notFound();
 
-  const profile = await requireProfile();
-  const board = BOARD_LABELS[slug];
+  const [profile, board] = await Promise.all([
+    requireProfile(),
+    getBoardBySlug(slug),
+  ]);
+  if (!board) notFound();
 
-  if (board.adminOnly && profile.role !== "admin") {
+  if (board.is_admin_only && profile.role !== "admin") {
     redirect(`/board/${slug}`);
   }
 
@@ -85,5 +89,6 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   if (!isBoardSlug(slug)) return { title: "글쓰기" };
-  return { title: `${BOARD_LABELS[slug].name} 글쓰기` };
+  const board = await getBoardBySlug(slug);
+  return { title: `${board?.name ?? "게시판"} 글쓰기` };
 }
