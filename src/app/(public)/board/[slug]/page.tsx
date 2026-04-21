@@ -28,7 +28,7 @@ export default async function BoardPage({
   if (!board) notFound();
 
   const canWrite =
-    profile && (slug !== "notice" || profile.role === "admin");
+    profile && (!board.is_admin_only || profile.role === "admin");
   const totalPages = Math.max(1, Math.ceil(total / POST_PAGE_SIZE));
 
   return (

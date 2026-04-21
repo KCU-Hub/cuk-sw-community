@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { PostWithAuthor } from "@/lib/types";
 import { formatRelativeKo } from "@/lib/format";
+import { formatAuthorName } from "@/lib/author";
 
 export function PostCard({ post }: { post: PostWithAuthor }) {
-  const authorName =
-    post.author?.display_name || post.author?.username || "알 수 없음";
+  const authorName = formatAuthorName(post.author);
   const href = `/board/${post.board_slug}/${post.id}`;
 
   return (

@@ -94,6 +94,24 @@ npm run dev
 
 http://localhost:3000 으로 접속.
 
+### 7. (권장) 타입 생성
+
+마이그레이션을 추가/수정한 뒤엔 Supabase 스키마와 TypeScript 타입의 드리프트를
+막기 위해 타입을 재생성해주세요. 결과물 (`src/lib/types.generated.ts`) 은 커밋
+대상입니다.
+
+```bash
+# 로컬 Supabase 를 쓸 때
+npm run types:gen:local
+
+# 클라우드 프로젝트에서 뽑아올 때
+SUPABASE_PROJECT_ID=xxxxxxxx npm run types:gen:remote
+```
+
+현재 `src/lib/types.ts` 의 수동 타입과 병행 운용합니다. 앞으로 도메인 타입
+(`PostWithAuthor`, `CommentNode`) 만 `types.ts` 에 남기고 베이스 row 타입은
+generated 로 이관할 예정입니다.
+
 ---
 
 ## 동작 확인
