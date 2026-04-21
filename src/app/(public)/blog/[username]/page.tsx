@@ -4,6 +4,7 @@ import { listBlogPosts, getProfileByUsername } from "@/lib/db/blog";
 import { getCurrentProfile } from "@/lib/auth/get-user";
 import { BlogCard } from "@/components/blog/blog-card";
 import { Pagination } from "@/components/ui/pagination";
+import { formatAuthorName } from "@/lib/author";
 
 const PAGE_SIZE = 12;
 
@@ -50,7 +51,7 @@ export default async function BlogAuthorPage({
         <div className="h-16 w-16 shrink-0 rounded-full bg-gradient-to-br from-zinc-100 to-zinc-200" />
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">
-            {author.display_name ?? author.username}
+            {formatAuthorName(author)}
           </h1>
           <p className="text-sm text-zinc-500">@{author.username}</p>
           {author.bio && (

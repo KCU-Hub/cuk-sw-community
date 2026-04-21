@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { listBlogPosts } from "@/lib/db/blog";
 import { BlogCard } from "@/components/blog/blog-card";
 import { Pagination } from "@/components/ui/pagination";
+import { isTagSlug } from "@/lib/validation/blog";
 
 const PAGE_SIZE = 12;
-const TAG_SLUG_RE = /^[a-z0-9-]{1,40}$/;
 
 export async function generateMetadata({
   params,
@@ -24,7 +24,7 @@ export default async function BlogTagPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { tag } = await params;
-  if (!TAG_SLUG_RE.test(tag)) notFound();
+  if (!isTagSlug(tag)) notFound();
 
   const { page: pageStr } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageStr ?? "1", 10) || 1);

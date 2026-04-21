@@ -1,21 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
+import { AUTHOR_EMBED } from "@/lib/db/selects";
 import type { Board, BoardSlug, PostWithAuthor } from "@/lib/types";
 
-const POST_AUTHOR_SELECT = `
-  *,
-  author:profiles!author_id(id, username, display_name, avatar_url)
-`;
+const POST_AUTHOR_SELECT = `*, ${AUTHOR_EMBED}`;
 
-// Same as above but embeds the viewer's post_likes row (filtered at the
-// query level via .eq('post_likes.user_id', viewerId)). When the viewer
-// liked the post, `post_likes` comes back as `[{user_id: ...}]`; otherwise
-// `[]`. We collapse that into a boolean and drop the array from the result
-// so callers get a stable PostWithAuthor shape.
-const POST_AUTHOR_LIKED_SELECT = `
-  *,
-  author:profiles!author_id(id, username, display_name, avatar_url),
-  post_likes!left(user_id)
-`;
+// With the viewer's post_likes row filtered at the query level via
+// .eq('post_likes.user_id', viewerId). When liked, post_likes comes back
+// as [{user_id}]; otherwise []. We collapse to a boolean and drop the
+// array so callers get a stable PostWithAuthor shape.
+const POST_AUTHOR_LIKED_SELECT = `*, ${AUTHOR_EMBED}, post_likes!left(user_id)`;
 
 export async function listBoards(): Promise<Board[]> {
   const supabase = await createClient();

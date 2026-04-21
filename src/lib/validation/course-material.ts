@@ -1,12 +1,5 @@
 import { z } from "zod";
-
-export const MATERIAL_TYPES = [
-  "lecture",
-  "assignment",
-  "exam",
-  "link",
-  "other",
-] as const;
+import { MATERIAL_TYPES } from "@/lib/types";
 
 export const courseMaterialIdSchema = z
   .string()
@@ -33,14 +26,16 @@ export const createCourseMaterialSchema = z.object({
     .url({ message: "외부 링크는 URL 형식이어야 합니다." })
     .optional()
     .or(z.literal("")),
-  // Storage 객체 상대 경로 (user_id/filename...) — 업로드 후 받은 값만 허용.
+  // Storage 객체 상대 경로 (user_id/...). 첫 segment 는 반드시 UUID.
+  // 서버는 이후 `profile.id` 와 실제로 일치하는지 추가 검증한다.
   file_path: z
     .string()
     .trim()
     .max(512)
-    .regex(/^[0-9a-fA-F-]{36}\/.+/, {
-      message: "업로드 경로가 올바르지 않습니다.",
-    })
+    .regex(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/.+$/,
+      { message: "업로드 경로가 올바르지 않습니다." },
+    )
     .optional()
     .or(z.literal("")),
 });
