@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { AUTHOR_EMBED } from "@/lib/db/selects";
-import { COURSE_FILES_BUCKET } from "@/lib/storage";
+import { COURSE_FILES_BUCKET } from "@/lib/constants";
 import type {
   Course,
   CourseMaterialWithAuthor,

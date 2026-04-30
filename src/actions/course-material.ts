@@ -93,21 +93,22 @@ export async function updateCourseMaterialAction(formData: FormData) {
 
   const supabase = await createClient();
 
-  // 기존 행을 1회 lookup 해서 file_path 가 정말 바뀌었을 때만 새 owner
-  // 검증을 적용. admin 모더레이션 시 form 의 hidden 'file_path' 가
-  // 그대로 다른 사용자 ID 시작이라도 변경 없음 ⇒ 통과.
-  const { data: existing, error: lookupError } = await supabase
-    .from("course_materials")
-    .select("file_path")
-    .eq("id", idResult.data)
-    .maybeSingle();
-  if (lookupError) throw new Error(mapSupabaseError(lookupError));
-
-  assertFilePathOwnership(
-    parsed.data.file_path ?? "",
-    profile,
-    (existing?.file_path as string | null | undefined) ?? null,
-  );
+  // assertFilePathOwnership 는 빈 file_path 면 즉시 통과하므로 그 케이스
+  // (텍스트만 수정) 에는 lookup 자체를 건너뛴다. file_path 가 들어왔을
+  // 때만 기존 row 의 path 를 가져와 "변경 없음 ⇒ admin 모더레이션 패스"
+  // 분기를 활성화.
+  const submittedFilePath = parsed.data.file_path ?? "";
+  let previousFilePath: string | null = null;
+  if (submittedFilePath) {
+    const { data: existing, error: lookupError } = await supabase
+      .from("course_materials")
+      .select("file_path")
+      .eq("id", idResult.data)
+      .maybeSingle();
+    if (lookupError) throw new Error(mapSupabaseError(lookupError));
+    previousFilePath = existing?.file_path ?? null;
+  }
+  assertFilePathOwnership(submittedFilePath, profile, previousFilePath);
 
   const { error } = await supabase
     .from("course_materials")

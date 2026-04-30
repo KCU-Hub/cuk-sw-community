@@ -11,3 +11,6 @@ export function isBoardSlug(value: string): value is BoardSlug {
 
 export const POST_PAGE_SIZE = 20;
 export const COMMENT_REPLY_DEPTH_CAP = 3;
+
+// Supabase Storage bucket id (server + client 공유). 정의는 0015 마이그레이션.
+export const COURSE_FILES_BUCKET = "course-files";
