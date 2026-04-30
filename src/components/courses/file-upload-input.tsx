@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
+import { COURSE_FILES_BUCKET } from "@/lib/storage";
 
 // Client-side 업로드: 파일을 Supabase Storage 의 course-files bucket 으로
 // 보낸 뒤, 서버 액션에 `file_path` 만 전달. 실제 바이너리는 action 에
@@ -39,13 +40,13 @@ export function FileUploadInput({
       const nextPath = `${userId}/${Date.now()}-${safeName}`;
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage
-        .from("course-files")
+        .from(COURSE_FILES_BUCKET)
         .upload(nextPath, file, { cacheControl: "3600", upsert: false });
       if (uploadError) throw uploadError;
 
       // 이전 파일이 있었으면 삭제 시도 — 실패해도 무시 (orphan 방지 best-effort)
       if (path && path !== nextPath) {
-        await supabase.storage.from("course-files").remove([path]);
+        await supabase.storage.from(COURSE_FILES_BUCKET).remove([path]);
       }
 
       setPath(nextPath);
@@ -59,7 +60,7 @@ export function FileUploadInput({
   async function handleClear() {
     if (!path) return;
     const supabase = createClient();
-    await supabase.storage.from("course-files").remove([path]);
+    await supabase.storage.from(COURSE_FILES_BUCKET).remove([path]);
     setPath("");
     if (inputRef.current) inputRef.current.value = "";
   }

@@ -13,16 +13,25 @@ import {
 import { mapSupabaseError } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { firstError } from "@/lib/form";
+import type { Profile } from "@/lib/types";
 
-// file_path 의 첫 segment 는 업로더 user_id 여야 하며 (Storage RLS 와 동일),
-// 로그인한 caller 의 profile.id 와 정확히 일치해야 한다. zod 는 형태만
-// 보장하고, 소유권은 여기서 강제.
-function assertFilePathOwnership(filePath: string, profileId: string): void {
+// 업로드된 파일 경로의 첫 segment 는 업로더 user_id 여야 한다 (Storage RLS
+// 와 동일 규칙). zod 는 형태만 보장하므로 소유권은 여기서 강제.
+//
+//   - admin 은 본인이 올린 새 파일이면 본인 ID, 다른 사용자의 자료를
+//     모더레이션 중이면 기존 file_path 가 그대로 들어올 수 있어 통과.
+//   - 일반 사용자는 항상 본인 ID 시작이어야 함.
+function assertFilePathOwnership(
+  filePath: string,
+  profile: Pick<Profile, "id" | "role">,
+  previousFilePath: string | null,
+): void {
   if (!filePath) return;
+  if (filePath === previousFilePath) return; // 변경 없음 — 그대로 통과
   const [first] = filePath.split("/");
-  if (first !== profileId) {
-    throw new Error("업로드 경로의 소유자와 계정이 일치하지 않습니다.");
-  }
+  if (first === profile.id) return;
+  if (profile.role === "admin") return; // 모더레이션 시 다른 사용자 path 허용
+  throw new Error("업로드 경로의 소유자와 계정이 일치하지 않습니다.");
 }
 
 export async function createCourseMaterialAction(formData: FormData) {
@@ -37,7 +46,8 @@ export async function createCourseMaterialAction(formData: FormData) {
     file_path: formData.get("file_path") ?? "",
   });
   if (!parsed.success) throw new Error(firstError(parsed.error));
-  assertFilePathOwnership(parsed.data.file_path ?? "", profile.id);
+  // create 는 비교할 previousFilePath 가 없음 — 항상 본인 ID 시작.
+  assertFilePathOwnership(parsed.data.file_path ?? "", profile, null);
 
   // 자료 생성은 post_create rate limit 를 공유
   await enforceRateLimit(profile.id, "post_create");
@@ -80,9 +90,25 @@ export async function updateCourseMaterialAction(formData: FormData) {
     file_path: formData.get("file_path") ?? "",
   });
   if (!parsed.success) throw new Error(firstError(parsed.error));
-  assertFilePathOwnership(parsed.data.file_path ?? "", profile.id);
 
   const supabase = await createClient();
+
+  // 기존 행을 1회 lookup 해서 file_path 가 정말 바뀌었을 때만 새 owner
+  // 검증을 적용. admin 모더레이션 시 form 의 hidden 'file_path' 가
+  // 그대로 다른 사용자 ID 시작이라도 변경 없음 ⇒ 통과.
+  const { data: existing, error: lookupError } = await supabase
+    .from("course_materials")
+    .select("file_path")
+    .eq("id", idResult.data)
+    .maybeSingle();
+  if (lookupError) throw new Error(mapSupabaseError(lookupError));
+
+  assertFilePathOwnership(
+    parsed.data.file_path ?? "",
+    profile,
+    (existing?.file_path as string | null | undefined) ?? null,
+  );
+
   const { error } = await supabase
     .from("course_materials")
     .update({
