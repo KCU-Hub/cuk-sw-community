@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
-import { COURSE_FILES_BUCKET } from "@/lib/storage";
+import { COURSE_FILES_BUCKET } from "@/lib/constants";
 
 // Client-side 업로드: 파일을 Supabase Storage 의 course-files bucket 으로
 // 보낸 뒤, 서버 액션에 `file_path` 만 전달. 실제 바이너리는 action 에
