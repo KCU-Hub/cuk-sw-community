@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { AUTHOR_EMBED } from "@/lib/db/selects";
+import { COURSE_FILES_BUCKET } from "@/lib/storage";
 import type {
   Course,
   CourseMaterialWithAuthor,
@@ -7,7 +8,6 @@ import type {
 } from "@/lib/types";
 
 const MATERIAL_SELECT = `*, ${AUTHOR_EMBED}`;
-const COURSE_FILES_BUCKET = "course-files";
 
 export async function listCourses(): Promise<Course[]> {
   const supabase = await createClient();
