@@ -172,3 +172,33 @@ export type CourseMaterial = {
 export type CourseMaterialWithAuthor = CourseMaterial & {
   author: Pick<Profile, "id" | "username" | "display_name" | "avatar_url"> | null;
 };
+
+// =====================================================================
+// 학점 관리 (0017)
+// =====================================================================
+
+// public.grade enum 과 동기화. P/NP 는 평점 계산에서 제외 (lib/gpa.ts).
+export const GRADES = [
+  "A+", "A",
+  "B+", "B",
+  "C+", "C",
+  "D+", "D",
+  "F",
+  "P", "NP",
+] as const;
+export type Grade = (typeof GRADES)[number];
+
+export type UserCourse = {
+  id: string;
+  user_id: string;
+  semester: string;
+  course_name: string;
+  course_code: string | null;
+  // numeric(3,1) → JS number 로 들어옴
+  credits: number;
+  grade: Grade;
+  is_excluded: boolean;
+  memo: string | null;
+  created_at: string;
+  updated_at: string;
+};

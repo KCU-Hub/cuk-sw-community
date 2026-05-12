@@ -2,14 +2,18 @@ import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/get-user";
 import { UserMenu } from "@/components/auth/user-menu";
 
-const NAV_ITEMS = [
+type NavItem = { href: string; label: string; authedOnly?: boolean };
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/board", label: "게시판" },
   { href: "/blog", label: "블로그" },
   { href: "/courses", label: "자료실" },
+  { href: "/gpa", label: "학점", authedOnly: true },
 ];
 
 export async function SiteHeader() {
   const profile = await getCurrentProfile();
+  const navItems = NAV_ITEMS.filter((item) => !item.authedOnly || profile);
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-100 bg-white/80 backdrop-blur">
@@ -23,7 +27,7 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-1 sm:flex">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
