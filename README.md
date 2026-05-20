@@ -1,22 +1,35 @@
 # cuk-sw-community
 
-고려사이버대학교 소프트웨어학부 학생들을 위한 **커뮤니티 + 블로그 + 과목 자료실** 플랫폼.
+고려사이버대학교 소프트웨어학부 학생들을 위한 **커뮤니티 · 블로그 · 과목 자료실 · 개인 학점 관리** 플랫폼.
 
 - **Stack**: Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Auth + Postgres + RLS + Storage)
 - **별도 백엔드 없음**: Server Actions 가 API 역할, Supabase RLS 가 권한 경계.
-- **5 Phase 모두 구현 완료** — 배포 전 디버깅 라운드 진행 중.
 
 ---
 
-## Phase 진행 상황
+## 한눈에 보기
 
-| Phase | 상태 | 내용 |
+- **Currently implemented** — Phase 1~5 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0017, 테스트 47건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA), GitHub Actions CI (lint + typecheck + vitest).
+- **Planned** — 프로덕션 배포. 베이스 row 타입을 `src/lib/types.generated.ts` 로 단일화 (`src/lib/types.ts` 는 `PostWithAuthor` / `CommentNode` 같은 도메인 타입만 유지).
+- **Design intent** — Server Actions = API · Supabase RLS = 권한 경계. 자료실 카탈로그 (`courses`) 와 개인 학점 기록 (`user_courses`) 을 의도적으로 분리: 전자는 학부 공통 카탈로그, 후자는 사용자가 들은 임의 과목을 자유 입력 (학기 문자열도 자유 입력). 댓글 depth cap 은 UI + DB trigger 이중 가드. 폰트 (Pretendard) 는 self-host — 외부 CDN 요청 0건이 CSP 의 가드레일.
+- **Non-goals** — 모바일 앱 · 실시간 채팅 · 다국어. 한국어 + CUK 학부 학생 한정. 익명 외부 사용자 / 공개 SaaS 가 아님.
+- **Redacted** — 배포 도메인, 학교 인증 정책 (학생 검증 방식 등 배포 전 확정 사항).
+
+---
+
+## 기능 현황
+
+| 영역 | 상태 | 내용 |
 | --- | --- | --- |
-| 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, /me, profiles/boards/courses/tags 시드, error/loading/404, 이메일 확인 플로우, a11y |
+| 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, `/me`, profiles/boards/courses/tags 시드, error/loading/404, 이메일 확인 플로우, a11y |
 | 2. 포럼 | ✅ | posts/comments/post_likes, RLS, 마크다운 (sanitize + highlight.js), 게시판 목록/상세/작성/수정, 댓글 트리 + depth cap, 좋아요 (optimistic), 조회수 dedupe |
-| 3. 블로그 | ✅ | blog_posts / blog_series / blog_post_tags, velog 스타일 카드 + 태그 + 시리즈, draft 지원, view count |
+| 3. 블로그 | ✅ | blog_posts / blog_series / blog_post_tags, velog 스타일 카드 + 태그 + 시리즈, draft, view count |
 | 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB), 종류 필터 |
-| 5. 관리자 + OAuth + 마무리 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, /admin/users 콘솔, CSP/보안 헤더, sanitize 회귀 테스트 (vitest) |
+| 5. 관리자 + OAuth + 보안 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, `/admin/users` 콘솔, CSP/보안 헤더, sanitize 회귀 테스트 |
+| 6. 개인 학점 관리 | ✅ | `user_courses` 자유 입력 + 4.5 만점 GPA + P/NP 제외 + `is_excluded` 행 단위 제외 + 마일스톤 (B / B+ / 조기졸업 4.0 / A / A+) |
+| CI | ✅ | `.github/workflows/ci.yml` — lint · typecheck · vitest |
+
+배포 전 디버깅 라운드 진행 중.
 
 ---
 
@@ -62,11 +75,7 @@ cp .env.local.example .env.local
 
 #### 옵션 A (Cloud) — Supabase 대시보드의 SQL Editor 에서 차례로 실행
 
-`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행:
-
-1. `0001_init.sql`
-2. `0002_rls.sql`
-3. `0003_seed.sql`
+`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0017_user_courses.sql`).
 
 #### 옵션 B (Local) — CLI 가 자동 적용
 
@@ -84,7 +93,7 @@ supabase db reset
 update public.profiles set role = 'admin' where username = '내_사용자명';
 ```
 
-이후로는 `/admin/users` (Phase 5 에서 추가 예정) 에서 관리.
+이후로는 `/admin/users` 에서 관리.
 
 ### 6. 개발 서버 실행
 
@@ -183,13 +192,21 @@ generated 로 이관할 예정입니다.
 
 ### Phase 5 (관리자 / 배포 준비)
 
-- [ ] Google/Kakao OAuth 로 로그인 가능 (Supabase Dashboard 설정 필요 — 아래 7번 항목)
+- [ ] Google/Kakao OAuth 로 로그인 가능 (Supabase Dashboard 설정 필요 — 위 7번 항목)
 - [ ] `/admin/users` 에서 사용자 검색 + ban(1d/7d/30d/permanent) + 사유 + 해제
 - [ ] ban 된 계정으로 글/댓글/좋아요 시도 시 '권한이 없습니다'
 - [ ] 같은 계정으로 1분 내 6번 글쓰기 → 6번째부터 rate limit 차단
 - [ ] 브라우저 DevTools 에서 CSP / X-Frame-Options / Permissions-Policy 헤더 5개 확인
 - [ ] jsdelivr.net 네트워크 요청 0건 (Pretendard self-host)
 - [ ] `<script>`, `<img onerror>`, `javascript:` href 등 XSS 페이로드 입력 → 렌더 결과에서 제거됨 (sanitize 테스트 15건 회귀 가드)
+
+### Phase 6 (개인 학점 관리)
+
+- [ ] `/gpa` 에서 학기별 수강 목록 + 누적 GPA / 학기별 GPA / 마일스톤 진행도 표시
+- [ ] `/gpa/new` 에서 과목명 · 학점 · 성적 (A+~F / P / NP) · 학기 자유 입력 → 목록에 추가
+- [ ] P / NP 행은 평점 평균 계산에서 제외, 학점은 별도 누적
+- [ ] `is_excluded` 토글 시 해당 행이 GPA 계산에서 빠지지만 목록에는 남음
+- [ ] 본인 외 계정에서 `/gpa` 접근 / 타인 row 수정 시 RLS 거부
 
 ---
 
@@ -199,8 +216,9 @@ generated 로 이관할 예정입니다.
 cuk-sw-community/
 ├── proxy.ts                       # Next 16: middleware → proxy. Supabase 세션 갱신
 ├── next.config.ts                 # CSP + 보안 헤더 5종
+├── .github/workflows/ci.yml       # lint + typecheck + vitest
 ├── supabase/
-│   └── migrations/                # 0001 ~ 0015 (Phase 1~5)
+│   └── migrations/                # 0001 ~ 0017
 └── src/
     ├── app/
     │   ├── layout.tsx             # Pretendard self-host + 메타데이터
@@ -213,7 +231,8 @@ cuk-sw-community/
     │   │   ├── admin/users/       # ban/unban + audit
     │   │   ├── board/[slug]/{new, [postId]/edit}
     │   │   ├── blog/new, blog/[username]/[slug]/edit
-    │   │   └── courses/[slug]/{new, [materialId]/edit}
+    │   │   ├── courses/[slug]/{new, [materialId]/edit}
+    │   │   └── gpa/{., new, [courseId]}   # 개인 학점 관리
     │   └── (public)/              # 누구나 읽기
     │       ├── board/{., [slug], [slug]/[postId]}
     │       ├── blog/{., [username], [username]/[slug], tag/[tag]}
@@ -225,18 +244,20 @@ cuk-sw-community/
     │   ├── board/{post-card, comment-tree/item, comment-form, like-button, ...}.tsx
     │   ├── blog/{blog-card, blog-post-form, blog-view-tracker}.tsx
     │   ├── courses/{course-material-form, file-upload-input}.tsx
+    │   ├── gpa/{gpa-summary-card, user-course-form}.tsx
     │   ├── admin/user-row.tsx
     │   └── ui/pagination.tsx
     ├── lib/
     │   ├── supabase/              # env / server / browser / proxy / admin 클라이언트
     │   ├── auth/                  # getCurrentUser, requireUser/Profile/Admin
     │   ├── db/                    # posts, comments, blog, courses, admin (PostgREST embed)
-    │   ├── validation/            # zod (auth, post, comment, blog, course-material)
+    │   ├── validation/            # zod (auth, post, comment, blog, course-material, user-course)
     │   ├── markdown/sanitize-schema.ts
-    │   ├── __tests__/rate-limit.test.ts
+    │   ├── __tests__/             # rate-limit, gpa 등
     │   ├── markdown/__tests__/sanitize.test.ts
     │   ├── db/__tests__/build-comment-tree.test.ts
     │   ├── rate-limit.ts          # sliding-window pure fn + enforcer
+    │   ├── gpa.ts                 # GRADE_POINTS + GPA_MILESTONES + summarize
     │   ├── author.ts              # formatAuthorName (탈퇴 사용자 라벨)
     │   ├── format.ts              # Intl 한국어 날짜
     │   ├── errors.ts              # mapSupabaseError + SQLSTATE 상수
@@ -249,6 +270,7 @@ cuk-sw-community/
         ├── likes.ts (toggle)
         ├── blog.ts (create / update / delete / incrementBlogView)
         ├── course-material.ts (create / update / delete)
+        ├── user-course.ts (create / update / delete / toggleExcluded)
         ├── admin.ts (banUser / unbanUser)
         └── README.md (revalidatePath 정책)
 ```
@@ -269,8 +291,11 @@ cuk-sw-community/
 ## Scripts
 
 ```bash
-npm run dev      # 개발 서버 (Turbopack)
-npm run build    # 프로덕션 빌드
-npm run start    # 빌드 결과 실행
-npm run lint     # ESLint
+npm run dev        # 개발 서버 (Turbopack)
+npm run build      # 프로덕션 빌드
+npm run start      # 빌드 결과 실행
+npm run lint       # ESLint
+npm run typecheck  # tsc --noEmit
+npm test           # vitest (watch)
+npm run test:run   # vitest run (CI 동일)
 ```
