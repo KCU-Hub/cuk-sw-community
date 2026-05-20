@@ -1,0 +1,42 @@
+version: 2
+updates:
+  # npm — weekly, grouped so patch+minor land as one PR
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 5
+    groups:
+      patch-and-minor:
+        update-types:
+          - patch
+          - minor
+      # Majors stay separate — review each one
+      major:
+        update-types:
+          - major
+    commit-message:
+      prefix: deps
+      include: scope
+
+  # GitHub Actions — weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        update-types:
+          - patch
+          - minor
+          - major
+    commit-message:
+      prefix: ci
+      include: scope

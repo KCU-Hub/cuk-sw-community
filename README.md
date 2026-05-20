@@ -9,7 +9,7 @@
 
 ## 한눈에 보기
 
-- **Currently implemented** — Phase 1~5 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0017, 테스트 47건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA), GitHub Actions CI (lint + typecheck + vitest).
+- **Currently implemented** — Phase 1~5 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0017, 테스트 47건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA), GitHub Actions CI (lint + typecheck + vitest + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
 - **Planned** — 프로덕션 배포. 베이스 row 타입을 `src/lib/types.generated.ts` 로 단일화 (`src/lib/types.ts` 는 `PostWithAuthor` / `CommentNode` 같은 도메인 타입만 유지).
 - **Design intent** — Server Actions = API · Supabase RLS = 권한 경계. 자료실 카탈로그 (`courses`) 와 개인 학점 기록 (`user_courses`) 을 의도적으로 분리: 전자는 학부 공통 카탈로그, 후자는 사용자가 들은 임의 과목을 자유 입력 (학기 문자열도 자유 입력). 댓글 depth cap 은 UI + DB trigger 이중 가드. 폰트 (Pretendard) 는 self-host — 외부 CDN 요청 0건이 CSP 의 가드레일.
 - **Non-goals** — 모바일 앱 · 실시간 채팅 · 다국어. 한국어 + CUK 학부 학생 한정. 익명 외부 사용자 / 공개 SaaS 가 아님.
@@ -27,7 +27,7 @@
 | 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB), 종류 필터 |
 | 5. 관리자 + OAuth + 보안 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, `/admin/users` 콘솔, CSP/보안 헤더, sanitize 회귀 테스트 |
 | 6. 개인 학점 관리 | ✅ | `user_courses` 자유 입력 + 4.5 만점 GPA + P/NP 제외 + `is_excluded` 행 단위 제외 + 마일스톤 (B / B+ / 조기졸업 4.0 / A / A+) |
-| CI | ✅ | `.github/workflows/ci.yml` — lint · typecheck · vitest |
+| CI | ✅ | `.github/workflows/ci.yml` — `quality` (lint · typecheck · vitest) + `build` (`next build` with placeholder env). `actions/cache@v4` 로 `.next/cache` 재사용. Top-level `permissions: contents: read` |
 
 배포 전 디버깅 라운드 진행 중.
 
