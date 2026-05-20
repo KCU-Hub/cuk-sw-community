@@ -49,7 +49,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .next/cache
-          key: ${{ runner.os }}-nextcache-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.tsx') }}
+          # Test files never reach the build output — exclude so test edits
+          # don't bust the cache.
+          key: ${{ runner.os }}-nextcache-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**/*.ts', 'src/**/*.tsx', 'next.config.ts', 'tsconfig.json', 'postcss.config.mjs', '!src/**/__tests__/**', '!src/**/*.test.ts') }}
           restore-keys: |
             ${{ runner.os }}-nextcache-${{ hashFiles('package-lock.json') }}-
             ${{ runner.os }}-nextcache-
@@ -57,10 +59,8 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      # Build placeholders for the public Supabase env. The build doesn't
-      # need real credentials — it only inlines NEXT_PUBLIC_* into the JS
-      # bundle. The proxy/server clients refuse to run at request time
-      # without real values, which is fine for a build job.
+      # Next build only inlines NEXT_PUBLIC_* into the bundle; server/proxy
+      # clients validate creds at request time, never at build.
       - name: Build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
