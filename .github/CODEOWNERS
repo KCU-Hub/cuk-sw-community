@@ -1,0 +1,3 @@
+# Default owner — every PR auto-assigns heznpc as reviewer.
+# Pairs with main branch protection's "required review" setting.
+* @heznpc
