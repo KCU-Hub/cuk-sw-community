@@ -40,25 +40,19 @@ function extractMessage(error: unknown): string {
   return "";
 }
 
-// Log only the safe fields. PostgREST errors can carry `hint` / `details`
-// strings that include schema, policy names, even fragments of the SQL the
-// driver tried to run — useful in a debugger, but noise (and recon material)
-// in shipped logs.
-function logSupabaseError(error: unknown): void {
-  if (!error) return;
+export function mapSupabaseError(error: unknown): string {
   const code = extractCode(error);
   const messageRaw = extractMessage(error);
-  // Truncate the message — we want the shape, not the payload.
-  const message =
-    messageRaw.length > 200 ? `${messageRaw.slice(0, 200)}…` : messageRaw;
-  console.error("[supabase error]", { code, message });
-}
 
-export function mapSupabaseError(error: unknown): string {
-  logSupabaseError(error);
+  // PostgREST errors carry `hint`/`details` with schema, policy names and SQL
+  // fragments — recon material in shipped logs. Log the shape, not the payload.
+  if (error) {
+    const truncated =
+      messageRaw.length > 200 ? `${messageRaw.slice(0, 200)}…` : messageRaw;
+    console.error("[supabase error]", { code, message: truncated });
+  }
 
-  const code = extractCode(error);
-  const message = extractMessage(error).toLowerCase();
+  const message = messageRaw.toLowerCase();
 
   switch (code) {
     case PG_ERROR_CODES.UNIQUE_VIOLATION:
