@@ -31,7 +31,8 @@
 - 마크다운 본문은 `rehype-sanitize` + `src/lib/markdown/sanitize-schema.ts`
   로 sanitize. 회귀 테스트 `src/lib/markdown/__tests__/sanitize.test.ts`
 - POST / COMMENT / LIKE 액션은 `src/lib/rate-limit.ts` 의 sliding-window
-  enforcer 사용
+  enforcer 사용 (best-effort — 병렬 요청 race 는 위협 모델 밖, 학부 학생
+  anti-spam 규모 기준)
 - 보안 헤더 (CSP / X-Frame-Options / Referrer-Policy / Permissions-Policy /
   X-Content-Type-Options) 는 `next.config.ts` 에서 모든 경로에 부여
 

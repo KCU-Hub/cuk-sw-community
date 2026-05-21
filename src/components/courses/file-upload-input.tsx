@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import { COURSE_FILES_BUCKET } from "@/lib/constants";
+import { sanitizeFilename } from "@/lib/file/sanitize-filename";
 
 // Client-side 업로드: 파일을 Supabase Storage 의 course-files bucket 으로
 // 보낸 뒤, 서버 액션에 `file_path` 만 전달. 실제 바이너리는 action 에
@@ -33,10 +34,7 @@ export function FileUploadInput({
 
     setUploading(true);
     try {
-      const safeName = file.name
-        .replace(/[^\p{L}\p{N}.\-_]+/gu, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 120);
+      const safeName = sanitizeFilename(file.name);
       const nextPath = `${userId}/${Date.now()}-${safeName}`;
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage

@@ -112,6 +112,9 @@ export async function incrementPostViewAction(postId: string) {
   const viewerKey = await buildViewerKey(user);
   if (!viewerKey) return;
 
+  // TODO(2nd-pass-audit-2026-05-21): rpc result is discarded; failures are
+  // silently best-effort like the client-side .catch(()=>{}). Confirm this is
+  // intentional (view counts non-critical) or wire to mapSupabaseError.
   await supabase.rpc("increment_post_view", {
     p_post_id: parsed.data,
     p_viewer_key: viewerKey,

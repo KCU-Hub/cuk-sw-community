@@ -2,6 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { AUTHOR_EMBED } from "@/lib/db/selects";
 import type { Board, BoardSlug, PostWithAuthor } from "@/lib/types";
 
+// TODO(2nd-pass-audit-2026-05-21): files in src/lib/db/ use `as unknown as X`
+// to bridge PostgREST embed result shapes (Supabase's generated row types
+// don't model embedded joins). Document once here — same pattern applies in
+// blog.ts / comments.ts / courses.ts. Replacement would be a per-query
+// runtime parser (zod) which costs verbosity for marginal type-safety gain.
+
 const POST_AUTHOR_SELECT = `*, ${AUTHOR_EMBED}`;
 
 // With the viewer's post_likes row filtered at the query level via
