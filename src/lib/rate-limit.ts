@@ -46,6 +46,16 @@ export function decideRateLimit(
 // Throws if the user has exceeded the limit; otherwise records the event
 // and returns. Callers invoke this as the first real side-effect inside a
 // server action so that rate-limit errors surface before any DB mutation.
+//
+// Threat model — best-effort, NOT atomic:
+//   fetch events → decide → insert is a TOCTOU window. N parallel requests
+//   from the same user can all observe count < limit before any of them
+//   inserts, letting up to N-1 extra events through. Acceptable because the
+//   limits exist to slow accidental floods and bot-level spam at student-
+//   community scale; a determined adversary bypassing by O(limit) is not
+//   in scope. Do NOT assume strict ordering from this function — if you
+//   need atomicity (e.g. for billing), move the check into a DB function
+//   that holds a row lock or uses INSERT ... WHERE.
 export async function enforceRateLimit(
   userId: string,
   action: RateAction,

@@ -18,6 +18,10 @@ function endTimeFor(duration: BanDuration): string | null {
 export async function banUserAction(formData: FormData) {
   const admin = await requireAdmin();
 
+  // TODO(2nd-pass-audit-2026-05-21): targetUserId is currently validated as
+  // "non-empty string". Malformed values fall through to a PostgREST type
+  // error → generic mapSupabaseError fallback. Defense-in-depth would add
+  // z.string().uuid() — RLS still enforces the real boundary.
   const targetUserId = String(formData.get("targetUserId") ?? "");
   const durationRaw = String(formData.get("duration") ?? "permanent") as BanDuration;
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 500) || null;
