@@ -135,6 +135,10 @@ describe("mapSupabaseError — non-leak logging contract", () => {
       details: "Failing row contains (1, 'secret-title', 'admin')",
     });
     expect(spy).toHaveBeenCalledTimes(1);
+    // Arity guard: pin exactly two args. A 3rd arg (e.g. the raw error passed
+    // "for debugging") would satisfy every assertion below yet still ship
+    // hint/details to the log sink — the exact leak this test exists to block.
+    expect(spy.mock.calls[0]).toHaveLength(2);
     const [tag, payload] = spy.mock.calls[0];
     expect(tag).toBe("[supabase error]");
     expect(payload).toEqual({
@@ -147,17 +151,25 @@ describe("mapSupabaseError — non-leak logging contract", () => {
     expect(payload).not.toHaveProperty("details");
   });
 
-  it("truncates messages longer than 200 chars with an ellipsis", () => {
-    const long = "x".repeat(500);
+  it("truncates messages longer than 200 chars, keeping the HEAD with an ellipsis", () => {
+    // Distinct HEAD/TAIL markers so the test proves we keep the *leading* 200
+    // chars, not the tail. Postgres appends CONTEXT/policy names at the END of
+    // long messages — keeping the tail would leak exactly what this truncation
+    // is meant to suppress.
+    const long = "HEAD" + "x".repeat(500) + "TAIL";
     mapSupabaseError({ message: long });
+    expect(spy).toHaveBeenCalledTimes(1);
     const [, payload] = spy.mock.calls[0];
-    expect(payload.message).toHaveLength(201); // 200 + "…"
+    expect(payload.message).toHaveLength(201); // 200 head chars + "…"
+    expect(payload.message.startsWith("HEAD")).toBe(true);
     expect(payload.message.endsWith("…")).toBe(true);
+    expect(payload.message).not.toContain("TAIL");
   });
 
   it("leaves messages 200 chars or shorter untouched", () => {
     const short = "y".repeat(200);
     mapSupabaseError({ message: short });
+    expect(spy).toHaveBeenCalledTimes(1);
     const [, payload] = spy.mock.calls[0];
     expect(payload.message).toBe(short);
     expect(payload.message.endsWith("…")).toBe(false);

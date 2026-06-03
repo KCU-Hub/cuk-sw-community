@@ -40,24 +40,55 @@ describe("sanitizeFilename — strips path separators (the main RLS-prefix defen
   it("replaces shell metacharacters", () => {
     expect(sanitizeFilename("a;b|c&d`e$f.txt")).toBe("a-b-c-d-e-f.txt");
   });
+
+  it("never emits a path separator or NUL for any fuzz-corpus input", () => {
+    // Property guard: whatever the input, the output must not contain a byte
+    // that could break out of the "{userId}/" prefix. Catches a future regex
+    // regression (e.g. a normalization step re-introducing a separator) that
+    // a fixed-literal test might miss.
+    const corpus = [
+      "../../../etc/passwd",
+      "foo\\bar\\baz",
+      "a/b\\c\x00d",
+      "..\\..\\win",
+      "/leading",
+      "trailing/",
+      "／fullwidth-solidus", // U+FF0F should NOT fold to "/"
+      "\u{1D400}/\u{1D401}",
+    ];
+    for (const input of corpus) {
+      expect(sanitizeFilename(input)).not.toMatch(/[/\\\x00]/);
+    }
+  });
 });
 
 describe("sanitizeFilename — trims and bounds", () => {
-  it("trims leading and trailing dashes after substitution", () => {
+  it("trims leading and trailing dashes introduced by substitution", () => {
     expect(sanitizeFilename("---hi---")).toBe("hi");
-    expect(sanitizeFilename("...---abc")).toBe("...---abc".replace(/^-+|-+$/g, ""));
-    // Concretely: leading dots are kept (they're in the allow set);
-    // trailing dashes from substitution would be trimmed.
     expect(sanitizeFilename("name!!!")).toBe("name");
+    // Interior dashes survive; only the edges are trimmed. Asserted against a
+    // concrete literal (not the trim regex itself) so a future change to the
+    // pipeline surfaces a real diff instead of comparing the impl to itself.
+    expect(sanitizeFilename("...---abc")).toBe("...---abc");
   });
 
-  it("caps length at FILENAME_MAX_LENGTH", () => {
-    const long = "a".repeat(FILENAME_MAX_LENGTH + 50);
-    const out = sanitizeFilename(long);
-    expect(out.length).toBeLessThanOrEqual(FILENAME_MAX_LENGTH);
+  it("caps length at exactly FILENAME_MAX_LENGTH for over-long input", () => {
+    const out = sanitizeFilename("a".repeat(FILENAME_MAX_LENGTH + 50));
+    expect(out).toBe("a".repeat(FILENAME_MAX_LENGTH));
   });
 
-  it("collapses a run of disallowed chars into a single dash, then trims", () => {
+  it("does NOT leave a trailing dash when the cap lands right after one", () => {
+    // Regression guard for the trim-vs-slice ordering. A single disallowed
+    // char sits so that, after substitution, the slice boundary falls
+    // immediately after the dash it became. Trim MUST run after slice or the
+    // Storage key ends in "-".
+    const input = "a".repeat(FILENAME_MAX_LENGTH - 1) + "?" + "b".repeat(50);
+    const out = sanitizeFilename(input);
+    expect(out).not.toMatch(/-$/);
+    expect(out).toBe("a".repeat(FILENAME_MAX_LENGTH - 1));
+  });
+
+  it("collapses a run of disallowed chars into a single dash", () => {
     // 'a' + 50× '?' + 'b' → 'a-b' (single dash between)
     expect(sanitizeFilename(`a${"?".repeat(50)}b`)).toBe("a-b");
   });
@@ -85,14 +116,23 @@ describe("sanitizeFilename — quirks worth documenting", () => {
     expect(sanitizeFilename("a..b")).toBe("a..b");
   });
 
-  it("slice operates on UTF-16 code units (acceptable: storage key, not user-visible truncation)", () => {
-    // A 4-byte emoji is 2 UTF-16 code units. Sliced at FILENAME_MAX_LENGTH
-    // can split a surrogate pair, producing a lone surrogate. Documented
-    // here so future readers know the trade-off is intentional — keys are
-    // never rendered, only echoed in `<span class="font-mono">{path}</span>`
-    // where lone surrogates render as a single replacement glyph.
-    const emojiHeavy = "🎯".repeat(FILENAME_MAX_LENGTH);
-    const out = sanitizeFilename(emojiHeavy);
+  it("strips emoji entirely (outside \\p{L}/\\p{N}) → falls back to FILENAME_FALLBACK", () => {
+    // Emoji never reach the slice step: the whole run collapses to a single
+    // dash, trims to empty, and falls back. (An earlier version of this test
+    // claimed emoji exercised the surrogate-split path — they don't.)
+    expect(sanitizeFilename("🎯".repeat(FILENAME_MAX_LENGTH))).toBe(
+      FILENAME_FALLBACK,
+    );
+  });
+
+  it("caps at the UTF-16 code-unit boundary; an SMP LETTER at the cut may split a surrogate pair", () => {
+    // SMP letters (e.g. U+1D400 MATHEMATICAL BOLD CAPITAL A) DO survive the
+    // \p{L} filter, so they exercise the real slice path. A 1-char ASCII
+    // prefix forces the cap onto an odd boundary, leaving a lone surrogate at
+    // the end. Acceptable: the value is a Storage object id, never rendered as
+    // user-facing text, and the length stays bounded.
+    const out = sanitizeFilename("a" + "\u{1D400}".repeat(70));
     expect(out.length).toBeLessThanOrEqual(FILENAME_MAX_LENGTH);
+    expect(out.startsWith("a")).toBe(true);
   });
 });
