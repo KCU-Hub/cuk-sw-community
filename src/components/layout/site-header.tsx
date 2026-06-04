@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentProfile } from "@/lib/auth/get-user";
 import { UserMenu } from "@/components/auth/user-menu";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 type NavItem = { href: string; label: string; authedOnly?: boolean };
 
@@ -17,7 +18,7 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-100 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+      <div className="relative mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
         <Link
           href="/"
           className="text-base font-semibold tracking-tight"
@@ -49,6 +50,7 @@ export async function SiteHeader() {
               로그인
             </Link>
           )}
+          <MobileNav items={navItems} />
         </div>
       </div>
     </header>

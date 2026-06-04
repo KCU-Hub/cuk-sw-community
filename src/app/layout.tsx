@@ -56,7 +56,11 @@ export default function RootLayout({
           본문으로 건너뛰기
         </a>
         <SiteHeader />
-        <div id="main-content">{children}</div>
+        {/* tabIndex=-1 so the skip-link moves keyboard focus here, not just
+            the scroll position. Page-level <main> elements remain the landmarks. */}
+        <div id="main-content" tabIndex={-1} className="outline-none">
+          {children}
+        </div>
       </body>
     </html>
   );
