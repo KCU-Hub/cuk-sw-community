@@ -24,10 +24,21 @@ export const createUserCourseSchema = z.object({
     .max(40)
     .optional()
     .or(z.literal("")),
+  // Gate the string format BEFORE numeric coercion. z.coerce.number() delegates
+  // to Number(), which happily parses "0x5"→5, "0b101"→5, "1e1"→10 — garbage for
+  // a credits field that the <input type=number> never produces but a direct
+  // server-action POST could. Only plain decimals pass.
   credits: z
-    .coerce.number({ message: "학점은 숫자여야 합니다." })
-    .gt(0, { message: "학점은 0보다 커야 합니다." })
-    .lte(9, { message: "학점은 9를 넘을 수 없습니다." }),
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d+)?$/, { message: "학점은 숫자여야 합니다." })
+    .transform(Number)
+    .pipe(
+      z
+        .number()
+        .gt(0, { message: "학점은 0보다 커야 합니다." })
+        .lte(9, { message: "학점은 9를 넘을 수 없습니다." }),
+    ),
   grade: z.enum(GRADES as unknown as [string, ...string[]]),
   is_excluded: z.boolean().default(false),
   memo: z

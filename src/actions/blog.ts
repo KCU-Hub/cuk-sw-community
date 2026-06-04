@@ -50,7 +50,11 @@ function readFormPayload(
     content: String(formData.get("content") ?? ""),
     excerpt: String(formData.get("excerpt") ?? ""),
     cover_image: String(formData.get("cover_image") ?? ""),
-    is_published: formBool(formData, "is_published", true),
+    // Default MUST be false: an HTML checkbox omits its field entirely when
+    // unchecked, so defaulting to true would silently re-publish a post the
+    // user just unchecked to keep private. The form's defaultChecked={true}
+    // still submits "on" for the common publish case.
+    is_published: formBool(formData, "is_published", false),
     series_id: String(formData.get("series_id") ?? ""),
     tags: parseTagList(formData.get("tags")),
   };
