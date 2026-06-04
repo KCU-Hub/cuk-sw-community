@@ -4,17 +4,19 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-user";
 import { isBoardSlug } from "@/lib/constants";
+import { postIdSchema } from "@/lib/validation/post";
 import { mapSupabaseError, PG_ERROR_CODES } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function toggleLikeAction(formData: FormData) {
   const profile = await requireProfile();
 
-  const postId = String(formData.get("postId") ?? "");
+  const postIdResult = postIdSchema.safeParse(formData.get("postId"));
   const boardSlugRaw = String(formData.get("boardSlug") ?? "");
-  if (!postId || !isBoardSlug(boardSlugRaw)) {
+  if (!postIdResult.success || !isBoardSlug(boardSlugRaw)) {
     throw new Error("잘못된 요청입니다.");
   }
+  const postId = postIdResult.data;
 
   await enforceRateLimit(profile.id, "like_toggle");
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth/require-user";
-import { createCommentSchema } from "@/lib/validation/comment";
+import { commentIdSchema, createCommentSchema } from "@/lib/validation/comment";
 import { isBoardSlug } from "@/lib/constants";
 import { mapSupabaseError } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -49,12 +49,13 @@ export async function createCommentAction(formData: FormData) {
 export async function deleteCommentAction(formData: FormData) {
   await requireProfile();
 
-  const commentId = String(formData.get("commentId") ?? "");
+  const commentIdResult = commentIdSchema.safeParse(formData.get("commentId"));
   const postId = String(formData.get("postId") ?? "");
   const boardSlugRaw = String(formData.get("boardSlug") ?? "");
-  if (!commentId || !postId || !isBoardSlug(boardSlugRaw)) {
+  if (!commentIdResult.success || !postId || !isBoardSlug(boardSlugRaw)) {
     throw new Error("잘못된 요청입니다.");
   }
+  const commentId = commentIdResult.data;
 
   const supabase = await createClient();
   // Soft delete preserves the tree structure for nested replies.

@@ -11,4 +11,8 @@ export const createCommentSchema = z.object({
     .max(2000, { message: "댓글은 최대 2000자입니다." }),
 });
 
+export const commentIdSchema = z
+  .string()
+  .uuid({ message: "올바른 댓글이 아닙니다." });
+
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;

@@ -101,6 +101,32 @@ describe("summarize", () => {
     expect(s.earnedCredits).toBe(3);
     expect(s.gpa).toBeCloseTo(4.0, 5);
   });
+
+  it("keeps rows = courses.length for an all-NP list (must not collapse to 0)", () => {
+    // Regression: an early-return for gradedCredits===0 && earnedCredits===0
+    // used to discard courses.length, reporting rows: 0 for a 2-course list.
+    const s = summarize([
+      mk({ credits: 3, grade: "NP" }),
+      mk({ credits: 2, grade: "NP" }),
+    ]);
+    expect(s.rows).toBe(2);
+    expect(s.gpa).toBeNull();
+    expect(s.gradedCredits).toBe(0);
+    expect(s.earnedCredits).toBe(0);
+  });
+
+  it("keeps rows = courses.length for an all-excluded list", () => {
+    const s = summarize([
+      mk({ credits: 3, grade: "A", is_excluded: true }),
+      mk({ credits: 3, grade: "B", is_excluded: true }),
+    ]);
+    expect(s.rows).toBe(2);
+    expect(s.gpa).toBeNull();
+  });
+
+  it("reports rows 0 only for a genuinely empty list", () => {
+    expect(summarize([]).rows).toBe(0);
+  });
 });
 
 describe("rollupBySemester", () => {
@@ -121,6 +147,17 @@ describe("rollupBySemester", () => {
     ]);
     expect(r[0].summary.gpa).toBe(4.0);
     expect(r[1].summary.gpa).toBe(3.0);
+  });
+
+  it("keeps a non-zero rows count for an all-NP semester bucket", () => {
+    const r = rollupBySemester([
+      mk({ semester: "2024-1", grade: "NP", credits: 3 }),
+      mk({ semester: "2024-2", grade: "A", credits: 3 }),
+    ]);
+    expect(r[0].summary.rows).toBe(1);
+    expect(r[0].summary.gpa).toBeNull();
+    expect(r[1].summary.rows).toBe(1);
+    expect(r[1].summary.gpa).toBe(4.0);
   });
 });
 

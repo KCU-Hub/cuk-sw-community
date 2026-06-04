@@ -51,11 +51,12 @@ export async function createPostAction(formData: FormData) {
 export async function updatePostAction(formData: FormData) {
   await requireProfile();
 
-  const postId = String(formData.get("postId") ?? "");
+  const postIdResult = postIdSchema.safeParse(formData.get("postId"));
   const boardSlugRaw = String(formData.get("boardSlug") ?? "");
-  if (!postId || !isBoardSlug(boardSlugRaw)) {
+  if (!postIdResult.success || !isBoardSlug(boardSlugRaw)) {
     throw new Error("잘못된 요청입니다.");
   }
+  const postId = postIdResult.data;
 
   const parsed = updatePostSchema.safeParse({
     title: formData.get("title"),
@@ -82,11 +83,12 @@ export async function updatePostAction(formData: FormData) {
 export async function deletePostAction(formData: FormData) {
   await requireProfile();
 
-  const postId = String(formData.get("postId") ?? "");
+  const postIdResult = postIdSchema.safeParse(formData.get("postId"));
   const boardSlugRaw = String(formData.get("boardSlug") ?? "");
-  if (!postId || !isBoardSlug(boardSlugRaw)) {
+  if (!postIdResult.success || !isBoardSlug(boardSlugRaw)) {
     throw new Error("잘못된 요청입니다.");
   }
+  const postId = postIdResult.data;
 
   const supabase = await createClient();
   // Soft delete — RLS ensures only the author or an admin can perform this.

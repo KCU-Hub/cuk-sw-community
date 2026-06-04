@@ -46,14 +46,6 @@ export interface GpaSummary {
   rows: number;
 }
 
-const EMPTY: GpaSummary = {
-  gradedCredits: 0,
-  weightedTotal: 0,
-  gpa: null,
-  earnedCredits: 0,
-  rows: 0,
-};
-
 export function summarize(courses: UserCourse[]): GpaSummary {
   let gradedCredits = 0;
   let weightedTotal = 0;
@@ -75,7 +67,10 @@ export function summarize(courses: UserCourse[]): GpaSummary {
     // NP / excluded 는 양쪽 모두 제외
   }
 
-  if (gradedCredits === 0 && earnedCredits === 0) return EMPTY;
+  // `rows` is always courses.length — an all-NP or all-excluded (but non-empty)
+  // list still has rows. Do NOT early-return a zeroed summary on
+  // gradedCredits===0, or rows would collapse to 0 and contradict the normal
+  // path (which counts excluded rows). gpa stays null when nothing is graded.
   return {
     gradedCredits,
     weightedTotal,

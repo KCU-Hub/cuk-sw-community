@@ -17,7 +17,7 @@ function readFormPayload(formData: FormData) {
     semester: String(formData.get("semester") ?? ""),
     course_name: String(formData.get("course_name") ?? ""),
     course_code: String(formData.get("course_code") ?? ""),
-    credits: formData.get("credits") ?? 0,
+    credits: String(formData.get("credits") ?? ""),
     grade: String(formData.get("grade") ?? ""),
     is_excluded: formBool(formData, "is_excluded", false),
     memo: String(formData.get("memo") ?? ""),
