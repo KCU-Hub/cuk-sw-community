@@ -23,9 +23,16 @@ function buildCsp(): string {
     }
   }
 
+  // React's dev runtime uses eval() for debugging features; without
+  // 'unsafe-eval' the dev console throws. Production never needs it.
+  const scriptSrc =
+    process.env.NODE_ENV === "production"
+      ? ["'self'", "'unsafe-inline'"]
+      : ["'self'", "'unsafe-inline'", "'unsafe-eval'"];
+
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'"],
+    "script-src": scriptSrc,
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:", "https:"],
     "font-src": ["'self'", "data:"],
