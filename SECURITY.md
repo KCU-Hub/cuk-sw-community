@@ -11,7 +11,7 @@
 다음 경로로 비공개 제보해주세요:
 
 - **GitHub Security Advisories** (권장):
-  <https://github.com/heznpc/cuk-sw-community/security/advisories/new>
+  <https://github.com/KCU-Hub/cuk-sw-community/security/advisories/new>
 - **이메일**: 본 레포 owner 의 GitHub 프로필에 공개된 연락처
 
 48 시간 안에 1차 응답을 드립니다. Public issue 에 취약점을 직접 적지
