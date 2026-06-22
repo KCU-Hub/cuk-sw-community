@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/require-user";
 import { getBlogPostByAuthorSlug, listSeriesByAuthor } from "@/lib/db/blog";
+import { listCourses } from "@/lib/db/courses";
 import { updateBlogPostAction } from "@/actions/blog";
 import { BlogPostForm } from "@/components/blog/blog-post-form";
 
@@ -23,7 +24,10 @@ export default async function EditBlogPostPage({
     redirect(`/blog/${username}/${slug}`);
   }
 
-  const series = await listSeriesByAuthor(post.author_id ?? profile.id);
+  const [series, courses] = await Promise.all([
+    listSeriesByAuthor(post.author_id ?? profile.id),
+    listCourses(),
+  ]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
@@ -35,6 +39,7 @@ export default async function EditBlogPostPage({
           mode="edit"
           initialPost={post}
           seriesOptions={series}
+          courseOptions={courses}
           backHref={`/blog/${username}/${slug}`}
         />
       </div>

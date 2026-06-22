@@ -35,6 +35,7 @@ export default async function BlogPostDetailPage({
   const isAuthor = viewer?.id === post.author_id;
   const isAdmin = viewer?.role === "admin";
   const canEdit = isAuthor || isAdmin;
+  const displayDate = post.published_at ?? post.created_at;
 
   if (post.is_deleted && !canEdit) notFound();
   if (!post.is_published && !canEdit) notFound();
@@ -88,8 +89,8 @@ export default async function BlogPostDetailPage({
           {formatAuthorName(post.author)}
         </Link>
         <span aria-hidden>·</span>
-        <time dateTime={post.published_at}>
-          {formatDateTimeKo(post.published_at)}
+        <time dateTime={displayDate}>
+          {formatDateTimeKo(displayDate)}
         </time>
         <span aria-hidden>·</span>
         <span>조회 {post.view_count}</span>
@@ -104,6 +105,20 @@ export default async function BlogPostDetailPage({
               className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-700 transition hover:bg-zinc-200"
             >
               #{t.name}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {post.courses.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {post.courses.map((course) => (
+            <Link
+              key={course.slug}
+              href={`/courses/${course.slug}`}
+              className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs text-brand-900 transition hover:bg-brand-100"
+            >
+              {course.name}
             </Link>
           ))}
         </div>
@@ -160,8 +175,8 @@ function SeriesNav({
 }) {
   const sorted = [...seriesPosts].sort(
     (a, b) =>
-      new Date(a.published_at).getTime() -
-      new Date(b.published_at).getTime(),
+      new Date(a.published_at ?? a.created_at).getTime() -
+      new Date(b.published_at ?? b.created_at).getTime(),
   );
   const idx = sorted.findIndex((p) => p.id === postId);
 

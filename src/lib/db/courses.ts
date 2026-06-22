@@ -1,13 +1,36 @@
 import { createClient } from "@/lib/supabase/server";
 import { AUTHOR_EMBED } from "@/lib/db/selects";
 import { COURSE_FILES_BUCKET } from "@/lib/constants";
+import { MATERIAL_TYPES } from "@/lib/types";
 import type {
   Course,
   CourseMaterialWithAuthor,
   MaterialType,
+  PostWithAuthor,
 } from "@/lib/types";
 
 const MATERIAL_SELECT = `*, ${AUTHOR_EMBED}`;
+const COURSE_EMBED =
+  "post_courses(course:courses(slug, name, code, description, semester_hint, sort_order))";
+const POST_SELECT = `*, ${AUTHOR_EMBED}, ${COURSE_EMBED}`;
+
+type RawPostRow = PostWithAuthor & {
+  post_courses?: Array<{ course: Course | null }>;
+};
+
+function normalizePost(row: RawPostRow): PostWithAuthor {
+  const courses = (row.post_courses ?? [])
+    .map((item) => item.course)
+    .filter((course): course is Course => course !== null);
+  const { post_courses: _drop, ...rest } = row;
+  void _drop;
+  return { ...rest, courses };
+}
+
+export type CourseMaterialStats = {
+  total: number;
+  byType: Record<MaterialType, number>;
+};
 
 export async function listCourses(): Promise<Course[]> {
   const supabase = await createClient();
@@ -74,6 +97,81 @@ export async function listCourseMaterials({
     materials: (data ?? []) as unknown as CourseMaterialWithAuthor[],
     total: count ?? 0,
   };
+}
+
+export async function getCourseMaterialStats(
+  courseSlug: string,
+): Promise<CourseMaterialStats> {
+  const supabase = await createClient();
+
+  const emptyByType = MATERIAL_TYPES.reduce(
+    (acc, materialType) => {
+      acc[materialType] = 0;
+      return acc;
+    },
+    {} as Record<MaterialType, number>,
+  );
+
+  const totalQuery = supabase
+    .from("course_materials")
+    .select("id", { count: "exact", head: true })
+    .eq("course_slug", courseSlug)
+    .eq("is_deleted", false);
+
+  const countQueries = MATERIAL_TYPES.map(async (materialType) => {
+    const { count, error } = await supabase
+      .from("course_materials")
+      .select("id", { count: "exact", head: true })
+      .eq("course_slug", courseSlug)
+      .eq("is_deleted", false)
+      .eq("material_type", materialType);
+    if (error) throw error;
+    return [materialType, count ?? 0] as const;
+  });
+
+  const [{ count: total, error: totalError }, ...typeCounts] =
+    await Promise.all([totalQuery, ...countQueries]);
+  if (totalError) throw totalError;
+
+  for (const [materialType, count] of typeCounts) {
+    emptyByType[materialType] = count;
+  }
+
+  return {
+    total: total ?? 0,
+    byType: emptyByType,
+  };
+}
+
+export async function listCourseRelatedPosts({
+  courseSlug,
+  limit = 5,
+}: {
+  courseSlug: string;
+  limit?: number;
+}): Promise<PostWithAuthor[]> {
+  const supabase = await createClient();
+  const { data: links, error: linkError } = await supabase
+    .from("post_courses")
+    .select("post_id")
+    .eq("course_slug", courseSlug)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3);
+  if (linkError) throw linkError;
+
+  const ids = Array.from(new Set((links ?? []).map((link) => link.post_id)));
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .in("id", ids)
+    .eq("board_slug", "qna")
+    .eq("is_deleted", false)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawPostRow[]).map(normalizePost);
 }
 
 export async function getCourseMaterialById(

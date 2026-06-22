@@ -28,6 +28,19 @@ function parseTagList(raw: FormDataEntryValue | null): string[] {
   );
 }
 
+function readCourseSlugs(formData: FormData): string[] {
+  const values = formData
+    .getAll("course_slugs")
+    .flatMap((value) => (typeof value === "string" ? [value] : []))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const legacySingle = String(formData.get("course_slug") ?? "").trim();
+  if (legacySingle) values.push(legacySingle);
+
+  return Array.from(new Set(values));
+}
+
 // 폼 → zod 입력 변환. create / update 가 공유.
 function readFormPayload(
   formData: FormData,
@@ -41,6 +54,7 @@ function readFormPayload(
   | "is_published"
   | "series_id"
   | "tags"
+  | "course_slugs"
 > {
   const rawTitle = String(formData.get("title") ?? "");
   const rawSlug = String(formData.get("slug") ?? "").trim();
@@ -57,6 +71,7 @@ function readFormPayload(
     is_published: formBool(formData, "is_published", false),
     series_id: String(formData.get("series_id") ?? ""),
     tags: parseTagList(formData.get("tags")),
+    course_slugs: readCourseSlugs(formData),
   };
 }
 
@@ -65,36 +80,28 @@ type ParsedBlogInput = CreateBlogPostInput;
 // profile.id + slug 는 자주 쓰므로 한 번에 묶어 받음.
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-async function upsertMissingTags(
-  supabase: SupabaseServerClient,
-  tags: string[],
-): Promise<void> {
-  if (tags.length === 0) return;
-  const rows = tags.map((slug) => ({ slug, name: slug }));
-  const { error } = await supabase
-    .from("tags")
-    .upsert(rows, { onConflict: "slug", ignoreDuplicates: true });
-  if (error) throw new Error(mapSupabaseError(error));
-}
-
 async function syncPostTags(
   supabase: SupabaseServerClient,
   postId: string,
   tags: string[],
 ): Promise<void> {
-  // N 이 10 이하로 cap 되어 있어 delete-all → insert-all 이 최소 로직.
-  const { error: delError } = await supabase
-    .from("blog_post_tags")
-    .delete()
-    .eq("post_id", postId);
-  if (delError) throw new Error(mapSupabaseError(delError));
+  const { error } = await supabase.rpc("set_blog_post_tags", {
+    p_post_id: postId,
+    p_tags: tags,
+  });
+  if (error) throw new Error(mapSupabaseError(error));
+}
 
-  if (tags.length === 0) return;
-  const rows = tags.map((tag_slug) => ({ post_id: postId, tag_slug }));
-  const { error: insError } = await supabase
-    .from("blog_post_tags")
-    .insert(rows);
-  if (insError) throw new Error(mapSupabaseError(insError));
+async function syncPostCourses(
+  supabase: SupabaseServerClient,
+  postId: string,
+  courseSlugs: string[],
+): Promise<void> {
+  const { error } = await supabase.rpc("set_blog_post_courses", {
+    p_post_id: postId,
+    p_course_slugs: courseSlugs,
+  });
+  if (error) throw new Error(mapSupabaseError(error));
 }
 
 function toUpsertRow(input: ParsedBlogInput, authorId: string | null) {
@@ -127,7 +134,6 @@ export async function createBlogPostAction(formData: FormData) {
   await enforceRateLimit(profile.id, "post_create");
 
   const supabase = await createClient();
-  await upsertMissingTags(supabase, parsed.data.tags);
 
   const { data, error } = await supabase
     .from("blog_posts")
@@ -137,9 +143,13 @@ export async function createBlogPostAction(formData: FormData) {
   if (error) mapSlugError(error);
 
   await syncPostTags(supabase, data.id, parsed.data.tags);
+  await syncPostCourses(supabase, data.id, parsed.data.course_slugs);
 
   revalidatePath("/blog");
   revalidatePath(`/blog/${profile.username}`);
+  for (const courseSlug of parsed.data.course_slugs) {
+    revalidatePath(`/courses/${courseSlug}`);
+  }
   redirect(`/blog/${profile.username}/${data.slug}`);
 }
 
@@ -154,7 +164,6 @@ export async function updateBlogPostAction(formData: FormData) {
   if (!parsed.success) throw new Error(firstError(parsed.error));
 
   const supabase = await createClient();
-  await upsertMissingTags(supabase, parsed.data.tags);
 
   const { error } = await supabase
     .from("blog_posts")
@@ -163,10 +172,14 @@ export async function updateBlogPostAction(formData: FormData) {
   if (error) mapSlugError(error);
 
   await syncPostTags(supabase, postIdResult.data, parsed.data.tags);
+  await syncPostCourses(supabase, postIdResult.data, parsed.data.course_slugs);
 
   revalidatePath("/blog");
   revalidatePath(`/blog/${profile.username}`);
   revalidatePath(`/blog/${profile.username}/${parsed.data.slug}`);
+  for (const courseSlug of parsed.data.course_slugs) {
+    revalidatePath(`/courses/${courseSlug}`);
+  }
   redirect(`/blog/${profile.username}/${parsed.data.slug}`);
 }
 

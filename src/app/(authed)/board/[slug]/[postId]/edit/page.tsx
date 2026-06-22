@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/require-user";
 import { getPostById } from "@/lib/db/posts";
+import { listCourses } from "@/lib/db/courses";
 import { updatePostAction } from "@/actions/posts";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { isBoardSlug } from "@/lib/constants";
@@ -19,7 +20,10 @@ export default async function EditPostPage({
   if (!isBoardSlug(slug)) notFound();
 
   const profile = await requireProfile();
-  const post = await getPostById(postId);
+  const [post, courses] = await Promise.all([
+    getPostById(postId),
+    listCourses(),
+  ]);
 
   if (!post || post.board_slug !== slug) notFound();
 
@@ -55,6 +59,29 @@ export default async function EditPostPage({
             defaultValue={post.title}
             className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           />
+        </div>
+
+        <div>
+          <label
+            htmlFor="course_slugs"
+            className="block text-sm font-medium text-zinc-700"
+          >
+            연결 과목
+          </label>
+          <select
+            id="course_slugs"
+            name="course_slugs"
+            defaultValue={post.courses[0]?.slug ?? ""}
+            className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+          >
+            <option value="">과목 연결 없음</option>
+            {courses.map((course) => (
+              <option key={course.slug} value={course.slug}>
+                {course.name}
+                {course.code ? ` (${course.code})` : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

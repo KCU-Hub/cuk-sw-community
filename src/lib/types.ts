@@ -46,6 +46,8 @@ export type Post = {
   comment_count: number;
   is_pinned: boolean;
   is_deleted: boolean;
+  question_status: "open" | "solved" | null;
+  accepted_comment_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -54,6 +56,7 @@ export type Post = {
 // `author` mirrors `author_id`: null ⇢ deleted account.
 export type PostWithAuthor = Post & {
   author: Pick<Profile, "id" | "username" | "display_name" | "avatar_url"> | null;
+  courses: Course[];
   liked_by_me?: boolean;
 };
 
@@ -110,7 +113,7 @@ export type BlogPost = {
   is_deleted: boolean;
   like_count: number;
   view_count: number;
-  published_at: string;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -119,6 +122,7 @@ export type BlogPostWithAuthor = BlogPost & {
   author: Pick<Profile, "id" | "username" | "display_name" | "avatar_url"> | null;
   tags: Tag[];
   series: Pick<BlogSeries, "id" | "title"> | null;
+  courses: Course[];
 };
 
 // =====================================================================

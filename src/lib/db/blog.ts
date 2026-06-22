@@ -4,6 +4,7 @@ import type {
   BlogPost,
   BlogPostWithAuthor,
   BlogSeries,
+  Course,
   Tag,
 } from "@/lib/types";
 
@@ -13,7 +14,8 @@ const BLOG_POST_SELECT = `
   *,
   ${AUTHOR_EMBED},
   blog_post_tags(tag_slug, tags(slug, name)),
-  series:blog_series(id, title)
+  series:blog_series(id, title),
+  blog_post_courses(course:courses(slug, name, code, description, semester_hint, sort_order))
 `;
 
 // tag 로 필터할 땐 inner join 으로 해당 태그가 붙은 post 만 outer 에
@@ -23,12 +25,14 @@ const BLOG_POST_SELECT_TAG_FILTERED = `
   ${AUTHOR_EMBED},
   tag_match:blog_post_tags!inner(tag_slug),
   blog_post_tags(tag_slug, tags(slug, name)),
-  series:blog_series(id, title)
+  series:blog_series(id, title),
+  blog_post_courses(course:courses(slug, name, code, description, semester_hint, sort_order))
 `;
 
 type RawBlogPostRow = BlogPost & {
   author: BlogPostWithAuthor["author"];
   blog_post_tags?: Array<{ tag_slug: string; tags: Tag | null }>;
+  blog_post_courses?: Array<{ course: Course | null }>;
   series: BlogPostWithAuthor["series"];
   tag_match?: unknown;
 };
@@ -37,11 +41,16 @@ function normalize(row: RawBlogPostRow): BlogPostWithAuthor {
   const tags: Tag[] = (row.blog_post_tags ?? [])
     .map((t) => t.tags)
     .filter((t): t is Tag => t !== null);
+  const courses = (row.blog_post_courses ?? [])
+    .map((c) => c.course)
+    .filter((course): course is Course => course !== null);
   return {
     ...row,
     tags,
+    courses,
     // embed-only 필드는 반환 타입에 없으므로 함께 덮어써 제거.
     blog_post_tags: undefined,
+    blog_post_courses: undefined,
     tag_match: undefined,
   } as BlogPostWithAuthor;
 }
@@ -95,7 +104,8 @@ const BLOG_POST_SELECT_AUTHOR_INNER = `
   *,
   author:profiles!inner(id, username, display_name, avatar_url),
   blog_post_tags(tag_slug, tags(slug, name)),
-  series:blog_series(id, title)
+  series:blog_series(id, title),
+  blog_post_courses(course:courses(slug, name, code, description, semester_hint, sort_order))
 `;
 
 export async function getBlogPostByAuthorSlug(

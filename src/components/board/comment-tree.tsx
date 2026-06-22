@@ -8,6 +8,8 @@ export function CommentTree({
   boardSlug,
   currentUserId,
   isAdmin,
+  acceptedCommentId,
+  canAcceptAnswer,
   depth = 0,
 }: {
   nodes: CommentNode[];
@@ -15,6 +17,8 @@ export function CommentTree({
   boardSlug: BoardSlug;
   currentUserId: string | null;
   isAdmin: boolean;
+  acceptedCommentId?: string | null;
+  canAcceptAnswer?: boolean;
   depth?: number;
 }) {
   if (nodes.length === 0) return null;
@@ -35,6 +39,8 @@ export function CommentTree({
             boardSlug={boardSlug}
             currentUserId={currentUserId}
             isAdmin={isAdmin}
+            acceptedCommentId={acceptedCommentId ?? null}
+            canAcceptAnswer={Boolean(canAcceptAnswer)}
             allowReply={depth < COMMENT_REPLY_DEPTH_CAP}
           />
           {node.children.length > 0 && (
@@ -44,6 +50,8 @@ export function CommentTree({
               boardSlug={boardSlug}
               currentUserId={currentUserId}
               isAdmin={isAdmin}
+              acceptedCommentId={acceptedCommentId ?? null}
+              canAcceptAnswer={Boolean(canAcceptAnswer)}
               depth={depth + 1}
             />
           )}
