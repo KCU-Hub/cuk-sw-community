@@ -15,6 +15,31 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { buildViewerKey } from "@/lib/viewer-key";
 import { firstError } from "@/lib/form";
 
+function readCourseSlugs(formData: FormData): string[] {
+  const values = formData
+    .getAll("course_slugs")
+    .flatMap((value) => (typeof value === "string" ? [value] : []))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const legacySingle = String(formData.get("course_slug") ?? "").trim();
+  if (legacySingle) values.push(legacySingle);
+
+  return Array.from(new Set(values));
+}
+
+async function syncPostCourses(
+  postId: string,
+  courseSlugs: string[],
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_post_courses", {
+    p_post_id: postId,
+    p_course_slugs: courseSlugs,
+  });
+  if (error) throw new Error(mapSupabaseError(error));
+}
+
 export async function createPostAction(formData: FormData) {
   const profile = await requireProfile();
 
@@ -22,6 +47,7 @@ export async function createPostAction(formData: FormData) {
     board_slug: formData.get("board_slug"),
     title: formData.get("title"),
     content: formData.get("content"),
+    course_slugs: readCourseSlugs(formData),
   });
 
   if (!parsed.success) {
@@ -44,7 +70,12 @@ export async function createPostAction(formData: FormData) {
 
   if (error) throw new Error(mapSupabaseError(error));
 
+  await syncPostCourses(data.id, parsed.data.course_slugs);
+
   revalidatePath(`/board/${parsed.data.board_slug}`);
+  for (const courseSlug of parsed.data.course_slugs) {
+    revalidatePath(`/courses/${courseSlug}`);
+  }
   redirect(`/board/${parsed.data.board_slug}/${data.id}`);
 }
 
@@ -61,6 +92,7 @@ export async function updatePostAction(formData: FormData) {
   const parsed = updatePostSchema.safeParse({
     title: formData.get("title"),
     content: formData.get("content"),
+    course_slugs: readCourseSlugs(formData),
   });
 
   if (!parsed.success) {
@@ -75,8 +107,13 @@ export async function updatePostAction(formData: FormData) {
 
   if (error) throw new Error(mapSupabaseError(error));
 
+  await syncPostCourses(postId, parsed.data.course_slugs);
+
   revalidatePath(`/board/${boardSlugRaw}`);
   revalidatePath(`/board/${boardSlugRaw}/${postId}`);
+  for (const courseSlug of parsed.data.course_slugs) {
+    revalidatePath(`/courses/${courseSlug}`);
+  }
   redirect(`/board/${boardSlugRaw}/${postId}`);
 }
 
@@ -121,4 +158,55 @@ export async function incrementPostViewAction(postId: string) {
     p_post_id: parsed.data,
     p_viewer_key: viewerKey,
   });
+}
+
+export async function markQuestionSolvedAction(formData: FormData) {
+  await requireProfile();
+
+  const postIdResult = postIdSchema.safeParse(formData.get("postId"));
+  const commentIdResult = postIdSchema.safeParse(formData.get("commentId"));
+  const boardSlugRaw = String(formData.get("boardSlug") ?? "");
+  if (
+    !postIdResult.success ||
+    !commentIdResult.success ||
+    !isBoardSlug(boardSlugRaw)
+  ) {
+    throw new Error("잘못된 요청입니다.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("posts")
+    .update({
+      accepted_comment_id: commentIdResult.data,
+      question_status: "solved",
+    })
+    .eq("id", postIdResult.data)
+    .eq("board_slug", "qna");
+  if (error) throw new Error(mapSupabaseError(error));
+
+  revalidatePath(`/board/${boardSlugRaw}/${postIdResult.data}`);
+}
+
+export async function reopenQuestionAction(formData: FormData) {
+  await requireProfile();
+
+  const postIdResult = postIdSchema.safeParse(formData.get("postId"));
+  const boardSlugRaw = String(formData.get("boardSlug") ?? "");
+  if (!postIdResult.success || !isBoardSlug(boardSlugRaw)) {
+    throw new Error("잘못된 요청입니다.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("posts")
+    .update({
+      accepted_comment_id: null,
+      question_status: "open",
+    })
+    .eq("id", postIdResult.data)
+    .eq("board_slug", "qna");
+  if (error) throw new Error(mapSupabaseError(error));
+
+  revalidatePath(`/board/${boardSlugRaw}/${postIdResult.data}`);
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
-import type { BlogPostWithAuthor, BlogSeries } from "@/lib/types";
+import type { BlogPostWithAuthor, BlogSeries, Course } from "@/lib/types";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
 
@@ -9,12 +9,16 @@ export function BlogPostForm({
   mode,
   initialPost,
   seriesOptions,
+  courseOptions,
+  initialCourseSlug,
   backHref,
 }: {
   action: FormAction;
   mode: "create" | "edit";
   initialPost?: BlogPostWithAuthor;
   seriesOptions: BlogSeries[];
+  courseOptions: Course[];
+  initialCourseSlug?: string;
   backHref: string;
 }) {
   const submitLabel = mode === "create" ? "발행" : "수정";
@@ -100,6 +104,29 @@ export function BlogPostForm({
           placeholder="java, algorithm, tips"
           className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
         />
+      </div>
+
+      <div>
+        <label htmlFor="course_slugs" className="block text-sm font-medium text-zinc-700">
+          연결 과목
+        </label>
+        <select
+          id="course_slugs"
+          name="course_slugs"
+          defaultValue={initialPost?.courses[0]?.slug ?? initialCourseSlug ?? ""}
+          className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        >
+          <option value="">과목 연결 없음</option>
+          {courseOptions.map((course) => (
+            <option key={course.slug} value={course.slug}>
+              {course.name}
+              {course.code ? ` (${course.code})` : ""}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-zinc-400">
+          과목과 연결하면 해당 과목 페이지에서 학습 기록으로 함께 보입니다.
+        </p>
       </div>
 
       <div>

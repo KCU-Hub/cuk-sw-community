@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { getBoardBySlug, getPostsByBoard } from "@/lib/db/posts";
 import { getCurrentProfile } from "@/lib/auth/get-user";
@@ -11,17 +12,25 @@ export default async function BoardPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; status?: string }>;
 }) {
   const { slug } = await params;
   if (!isBoardSlug(slug)) notFound();
 
-  const { page: pageStr } = await searchParams;
+  const { page: pageStr, status } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageStr ?? "1", 10) || 1);
+  const questionStatus =
+    slug === "qna" && (status === "open" || status === "solved")
+      ? status
+      : undefined;
 
   const [board, { posts, total }, profile] = await Promise.all([
     getBoardBySlug(slug),
-    getPostsByBoard(slug, { page, pageSize: POST_PAGE_SIZE }),
+    getPostsByBoard(slug, {
+      page,
+      pageSize: POST_PAGE_SIZE,
+      questionStatus,
+    }),
     getCurrentProfile(),
   ]);
 
@@ -50,6 +59,26 @@ export default async function BoardPage({
         )}
       </div>
 
+      {slug === "qna" && (
+        <div className="mt-6 flex flex-wrap gap-2 text-sm">
+          <StatusLink href="/board/qna" active={!questionStatus}>
+            전체
+          </StatusLink>
+          <StatusLink
+            href="/board/qna?status=open"
+            active={questionStatus === "open"}
+          >
+            미해결
+          </StatusLink>
+          <StatusLink
+            href="/board/qna?status=solved"
+            active={questionStatus === "solved"}
+          >
+            해결됨
+          </StatusLink>
+        </div>
+      )}
+
       <div className="mt-8 border-t border-zinc-100">
         {posts.length === 0 ? (
           <div className="py-16 text-center text-sm text-zinc-400">
@@ -63,9 +92,36 @@ export default async function BoardPage({
       <Pagination
         currentPage={page}
         totalPages={totalPages}
-        basePath={`/board/${slug}`}
+        basePath={
+          questionStatus
+            ? `/board/${slug}?status=${questionStatus}`
+            : `/board/${slug}`
+        }
       />
     </main>
+  );
+}
+
+function StatusLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        active
+          ? "rounded-full bg-zinc-900 px-3 py-1.5 font-medium text-white"
+          : "rounded-full border border-zinc-200 bg-white px-3 py-1.5 font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+      }
+    >
+      {children}
+    </Link>
   );
 }
 

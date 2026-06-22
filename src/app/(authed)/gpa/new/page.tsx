@@ -6,7 +6,12 @@ import { UserCourseForm } from "@/components/gpa/user-course-form";
 
 export const metadata = { title: "과목 추가" };
 
-export default async function NewUserCoursePage() {
+export default async function NewUserCoursePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ courseName?: string; courseCode?: string }>;
+}) {
+  const { courseName, courseCode } = await searchParams;
   const profile = await requireProfile();
   const courses = await listUserCourses(profile.id);
   const lastSemester = rollupBySemester(courses).at(-1)?.semester;
@@ -24,6 +29,8 @@ export default async function NewUserCoursePage() {
           action={createUserCourseAction}
           mode="create"
           defaultSemester={lastSemester}
+          defaultCourseName={courseName?.slice(0, 80)}
+          defaultCourseCode={courseCode?.slice(0, 40)}
           backHref="/gpa"
         />
       </div>
