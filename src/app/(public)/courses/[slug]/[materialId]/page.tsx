@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getCourseBySlug,
-  getCourseFilePublicUrl,
+  getCourseFileDownloadUrl,
   getCourseMaterialById,
 } from "@/lib/db/courses";
 import { getCurrentProfile } from "@/lib/auth/get-user";
@@ -43,7 +43,7 @@ export default async function CourseMaterialDetailPage({
   if (material.is_deleted && !canEdit) notFound();
 
   const fileUrl = material.file_path
-    ? await getCourseFilePublicUrl(material.file_path)
+    ? await getCourseFileDownloadUrl(material.file_path)
     : null;
   const fileName = material.file_path?.split("/").pop() ?? null;
 

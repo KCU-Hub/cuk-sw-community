@@ -11,8 +11,7 @@ export const courseSlugSchema = z
   .max(80)
   .regex(/^[a-z0-9-]+$/, { message: "잘못된 과목입니다." });
 
-export const createCourseMaterialSchema = z.object({
-  course_slug: courseSlugSchema,
+const courseMaterialPayloadShape = {
   material_type: z.enum(MATERIAL_TYPES),
   title: z
     .string()
@@ -38,11 +37,34 @@ export const createCourseMaterialSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
-});
+};
 
-export const updateCourseMaterialSchema = createCourseMaterialSchema.omit({
-  course_slug: true,
-});
+function requireMaterialBody(
+  value: z.infer<z.ZodObject<typeof courseMaterialPayloadShape>>,
+  ctx: z.RefinementCtx,
+) {
+  const hasContent = value.content.trim().length > 0;
+  const hasExternalUrl = (value.external_url ?? "").trim().length > 0;
+  const hasFilePath = (value.file_path ?? "").trim().length > 0;
+  if (!hasContent && !hasExternalUrl && !hasFilePath) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["content"],
+      message: "본문, 외부 링크, 첨부 파일 중 하나는 입력해주세요.",
+    });
+  }
+}
+
+export const createCourseMaterialSchema = z
+  .object({
+    course_slug: courseSlugSchema,
+    ...courseMaterialPayloadShape,
+  })
+  .superRefine(requireMaterialBody);
+
+export const updateCourseMaterialSchema = z
+  .object(courseMaterialPayloadShape)
+  .superRefine(requireMaterialBody);
 
 export type CreateCourseMaterialInput = z.infer<typeof createCourseMaterialSchema>;
 export type UpdateCourseMaterialInput = z.infer<typeof updateCourseMaterialSchema>;

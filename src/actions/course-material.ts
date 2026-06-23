@@ -17,6 +17,23 @@ import { COURSE_FILES_BUCKET } from "@/lib/constants";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
+const ALLOWED_COURSE_FILE_EXTENSIONS = new Set([
+  "pdf",
+  "zip",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "txt",
+  "md",
+]);
+
 type CourseMaterialActionTarget = {
   course_slug: string;
   file_path: string | null;
@@ -41,6 +58,15 @@ function assertFilePathOwnership(
   throw new Error("업로드 경로의 소유자와 계정이 일치하지 않습니다.");
 }
 
+function assertAllowedCourseFilePath(filePath: string): void {
+  if (!filePath) return;
+  const fileName = filePath.split("/").pop() ?? "";
+  const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (!ALLOWED_COURSE_FILE_EXTENSIONS.has(extension)) {
+    throw new Error("허용되지 않는 첨부 파일 형식입니다.");
+  }
+}
+
 async function getCourseMaterialActionTarget(
   supabase: SupabaseServerClient,
   materialId: string,
@@ -60,7 +86,8 @@ async function cleanupCourseFile(
   filePath: string | null,
 ): Promise<void> {
   if (!filePath) return;
-  await supabase.storage.from(COURSE_FILES_BUCKET).remove([filePath]);
+  const { error } = await supabase.storage.from(COURSE_FILES_BUCKET).remove([filePath]);
+  if (error) throw new Error(mapSupabaseError(error));
 }
 
 export async function createCourseMaterialAction(formData: FormData) {
@@ -77,6 +104,7 @@ export async function createCourseMaterialAction(formData: FormData) {
   if (!parsed.success) throw new Error(firstError(parsed.error));
   // create 는 비교할 previousFilePath 가 없음 — 항상 본인 ID 시작.
   assertFilePathOwnership(parsed.data.file_path ?? "", profile, null);
+  assertAllowedCourseFilePath(parsed.data.file_path ?? "");
 
   // 자료 생성은 post_create rate limit 를 공유
   await enforceRateLimit(profile.id, "post_create");
@@ -122,6 +150,7 @@ export async function updateCourseMaterialAction(formData: FormData) {
   const target = await getCourseMaterialActionTarget(supabase, idResult.data);
   const submittedFilePath = parsed.data.file_path ?? "";
   assertFilePathOwnership(submittedFilePath, profile, target.file_path);
+  assertAllowedCourseFilePath(submittedFilePath);
 
   const { data: updated, error } = await supabase
     .from("course_materials")

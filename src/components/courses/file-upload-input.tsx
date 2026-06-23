@@ -5,6 +5,23 @@ import { createClient } from "@/lib/supabase/browser";
 import { COURSE_FILES_BUCKET } from "@/lib/constants";
 import { sanitizeFilename } from "@/lib/file/sanitize-filename";
 
+const ACCEPTED_COURSE_FILE_TYPES = [
+  ".pdf",
+  ".zip",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".txt",
+  ".md",
+].join(",");
+
 // Client-side 업로드: 파일을 Supabase Storage 의 course-files bucket 으로
 // 보낸 뒤, 서버 액션에 `file_path` 만 전달. 실제 바이너리는 action 에
 // 안 건너가므로 Next/Route body size 제한을 회피.
@@ -39,7 +56,11 @@ export function FileUploadInput({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage
         .from(COURSE_FILES_BUCKET)
-        .upload(nextPath, file, { cacheControl: "3600", upsert: false });
+        .upload(nextPath, file, {
+          cacheControl: "3600",
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
       if (uploadError) throw uploadError;
 
       setPath(nextPath);
@@ -64,6 +85,7 @@ export function FileUploadInput({
         <input
           ref={inputRef}
           type="file"
+          accept={ACCEPTED_COURSE_FILE_TYPES}
           onChange={handleChange}
           disabled={uploading}
           className="block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 disabled:opacity-50"
