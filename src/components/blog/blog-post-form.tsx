@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { CourseCheckboxList } from "@/components/courses/course-checkbox-list";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
-import type { BlogPostWithAuthor, BlogSeries } from "@/lib/types";
+import type { BlogPostWithAuthor, BlogSeries, Course } from "@/lib/types";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
 
@@ -9,15 +10,22 @@ export function BlogPostForm({
   mode,
   initialPost,
   seriesOptions,
+  courseOptions,
+  initialCourseSlug,
   backHref,
 }: {
   action: FormAction;
   mode: "create" | "edit";
   initialPost?: BlogPostWithAuthor;
   seriesOptions: BlogSeries[];
+  courseOptions: Course[];
+  initialCourseSlug?: string;
   backHref: string;
 }) {
   const submitLabel = mode === "create" ? "발행" : "수정";
+  const selectedCourseSlugs =
+    initialPost?.courses.map((course) => course.slug) ??
+    (initialCourseSlug ? [initialCourseSlug] : []);
 
   return (
     <form action={action} className="space-y-6">
@@ -102,6 +110,12 @@ export function BlogPostForm({
         />
       </div>
 
+      <CourseCheckboxList
+        courses={courseOptions}
+        selectedSlugs={selectedCourseSlugs}
+        helpText="최대 3개까지 연결할 수 있습니다. 연결한 과목 페이지에 학습 기록으로 함께 보입니다."
+      />
+
       <div>
         <label htmlFor="series_id" className="block text-sm font-medium text-zinc-700">
           시리즈
@@ -119,6 +133,20 @@ export function BlogPostForm({
             </option>
           ))}
         </select>
+        <label
+          htmlFor="new_series_title"
+          className="mt-3 block text-sm font-medium text-zinc-700"
+        >
+          새 시리즈 만들기
+        </label>
+        <input
+          id="new_series_title"
+          name="new_series_title"
+          type="text"
+          maxLength={120}
+          placeholder="선택한 시리즈가 없을 때 새로 만듭니다"
+          className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        />
       </div>
 
       <div>

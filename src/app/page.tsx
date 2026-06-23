@@ -1,4 +1,12 @@
 import Link from "next/link";
+import { getCurrentProfile } from "@/lib/auth/get-user";
+import { getPostsByBoard } from "@/lib/db/posts";
+import { listBlogPosts } from "@/lib/db/blog";
+import { listUserCourses } from "@/lib/db/user-courses";
+import { summarize } from "@/lib/gpa";
+import { formatRelativeKo } from "@/lib/format";
+import { formatAuthorName } from "@/lib/author";
+import type { BlogPostWithAuthor, PostWithAuthor, Profile } from "@/lib/types";
 
 type IconProps = { className?: string };
 
@@ -81,7 +89,40 @@ const FEATURES = [
   },
 ] as const;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const profile = await getCurrentProfile();
+
+  if (profile) {
+    const [
+      { posts: questions, total: openQuestionCount },
+      { posts: blogs },
+      userCourses,
+    ] =
+      await Promise.all([
+        getPostsByBoard("qna", {
+          page: 1,
+          pageSize: 5,
+          questionStatus: "open",
+        }),
+        listBlogPosts({ page: 1, pageSize: 4 }),
+        listUserCourses(profile.id),
+      ]);
+    return (
+      <AuthedHome
+        profile={profile}
+        questions={questions}
+        openQuestionCount={openQuestionCount}
+        blogs={blogs}
+        courseCount={userCourses.length}
+        gpa={summarize(userCourses).gpa}
+      />
+    );
+  }
+
+  return <VisitorHome />;
+}
+
+function VisitorHome() {
   return (
     <main className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-5xl flex-col justify-center px-4 py-16">
       <section className="text-center">
@@ -129,5 +170,216 @@ export default function HomePage() {
         ))}
       </section>
     </main>
+  );
+}
+
+function AuthedHome({
+  profile,
+  questions,
+  openQuestionCount,
+  blogs,
+  courseCount,
+  gpa,
+}: {
+  profile: Profile;
+  questions: PostWithAuthor[];
+  openQuestionCount: number;
+  blogs: BlogPostWithAuthor[];
+  courseCount: number;
+  gpa: number | null;
+}) {
+  const displayName = profile.display_name || profile.username;
+
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-10">
+      <section className="flex flex-col gap-6 border-b border-zinc-100 pb-8 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm font-medium text-brand-700">
+            {displayName}님의 학습 공간
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">
+            과목에서 질문하고, 기록하고, 다시 이어보세요.
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
+            CUK SW Community는 과목별 자료, 질문, 블로그 기록, 개인 학점
+            관리를 하나의 흐름으로 묶습니다.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/board/qna/new"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            질문하기
+          </Link>
+          <Link
+            href="/blog/new"
+            className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+          >
+            기록 쓰기
+          </Link>
+        </div>
+      </section>
+
+      <section className="mt-8 grid gap-4 sm:grid-cols-3">
+        <DashboardMetric
+          label="내 GPA"
+          value={gpa === null ? "—" : gpa.toFixed(2)}
+          href="/gpa"
+        />
+        <DashboardMetric
+          label="내 수강 기록"
+          value={`${courseCount}`}
+          href="/gpa"
+        />
+        <DashboardMetric
+          label="미해결 질문"
+          value={`${openQuestionCount}`}
+          href="/board/qna?status=open"
+        />
+      </section>
+
+      <section className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div>
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                답변을 기다리는 질문
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                아직 해결되지 않은 질문부터 확인합니다.
+              </p>
+            </div>
+            <Link
+              href="/board/qna?status=open"
+              className="text-sm font-medium text-brand-700 hover:text-brand-900"
+            >
+              더 보기
+            </Link>
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-md border border-zinc-100 bg-white">
+            {questions.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-zinc-400">
+                지금은 미해결 질문이 없습니다.
+              </p>
+            ) : (
+              <ul className="divide-y divide-zinc-100">
+                {questions.map((post) => (
+                  <DashboardQuestion key={post.id} post={post} />
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <aside>
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                최근 학습 기록
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                블로그에 쌓이는 공개 기록입니다.
+              </p>
+            </div>
+            <Link
+              href="/blog"
+              className="text-sm font-medium text-brand-700 hover:text-brand-900"
+            >
+              블로그
+            </Link>
+          </div>
+          <div className="mt-4 space-y-3">
+            {blogs.length === 0 ? (
+              <p className="rounded-md border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
+                아직 발행된 기록이 없습니다.
+              </p>
+            ) : (
+              blogs.map((post) => <DashboardBlog key={post.id} post={post} />)
+            )}
+          </div>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function DashboardMetric({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-md border border-zinc-100 bg-white p-4 transition hover:border-brand-200 hover:bg-brand-50/30"
+    >
+      <span className="text-xs font-medium text-zinc-500">{label}</span>
+      <span className="mt-2 block text-2xl font-semibold tracking-tight text-zinc-900">
+        {value}
+      </span>
+    </Link>
+  );
+}
+
+function DashboardQuestion({ post }: { post: PostWithAuthor }) {
+  return (
+    <li>
+      <Link
+        href={`/board/${post.board_slug}/${post.id}`}
+        className="block px-4 py-3 transition hover:bg-zinc-50"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="line-clamp-1 text-sm font-medium text-zinc-900">
+              {post.title}
+            </h3>
+            <p className="mt-1 text-xs text-zinc-500">
+              {formatAuthorName(post.author)} · {formatRelativeKo(post.created_at)}
+            </p>
+          </div>
+          <span className="shrink-0 text-xs text-zinc-500">
+            댓글 {post.comment_count}
+          </span>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function DashboardBlog({ post }: { post: BlogPostWithAuthor }) {
+  const username = post.author?.username;
+  const displayDate = post.published_at ?? post.created_at;
+
+  return (
+    <Link
+      href={username ? `/blog/${username}/${post.slug}` : "/blog"}
+      className="block rounded-md border border-zinc-100 bg-white p-4 transition hover:border-brand-200 hover:bg-brand-50/30"
+    >
+      <h3 className="line-clamp-2 text-sm font-medium text-zinc-900">
+        {post.title}
+      </h3>
+      <p className="mt-2 text-xs text-zinc-500">
+        {formatAuthorName(post.author)} · {formatRelativeKo(displayDate)}
+      </p>
+      {post.courses.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1">
+          {post.courses.slice(0, 2).map((course) => (
+            <span
+              key={course.slug}
+              className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-900"
+            >
+              {course.name}
+            </span>
+          ))}
+        </div>
+      )}
+    </Link>
   );
 }

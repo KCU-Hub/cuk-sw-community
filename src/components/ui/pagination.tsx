@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 export function Pagination({
   currentPage,
@@ -19,17 +20,21 @@ export function Pagination({
       aria-label="페이지네이션"
       className="mt-8 flex items-center justify-between"
     >
-      <PageLink href={prev ? `${basePath}?page=${prev}` : null}>
+      <PageLink href={prev ? pageHref(basePath, prev) : null}>
         ← 이전
       </PageLink>
       <span className="text-sm text-zinc-500" aria-live="polite">
         {currentPage} / {totalPages}
       </span>
-      <PageLink href={next ? `${basePath}?page=${next}` : null}>
+      <PageLink href={next ? pageHref(basePath, next) : null}>
         다음 →
       </PageLink>
     </nav>
   );
+}
+
+function pageHref(basePath: string, page: number): string {
+  return `${basePath}${basePath.includes("?") ? "&" : "?"}page=${page}`;
 }
 
 function PageLink({
@@ -37,7 +42,7 @@ function PageLink({
   children,
 }: {
   href: string | null;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   if (!href) {
     return (

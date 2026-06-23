@@ -7,6 +7,7 @@ export function BlogCard({ post }: { post: BlogPostWithAuthor }) {
   const authorName = formatAuthorName(post.author);
   const username = post.author?.username ?? null;
   const href = username ? `/blog/${username}/${post.slug}` : "#";
+  const displayDate = post.published_at ?? post.created_at;
 
   return (
     <article className="group overflow-hidden rounded-xl border border-zinc-100 bg-white transition hover:border-brand-200 hover:shadow-sm">
@@ -46,11 +47,24 @@ export function BlogCard({ post }: { post: BlogPostWithAuthor }) {
             </div>
           )}
 
+          {post.courses.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {post.courses.slice(0, 3).map((course) => (
+                <span
+                  key={course.slug}
+                  className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-900"
+                >
+                  {course.name}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="mt-4 flex items-center gap-2 text-xs text-zinc-500">
             <span className="font-medium text-zinc-700">{authorName}</span>
             <span aria-hidden>·</span>
-            <time dateTime={post.published_at}>
-              {formatRelativeKo(post.published_at)}
+            <time dateTime={displayDate}>
+              {formatRelativeKo(displayDate)}
             </time>
             {post.like_count > 0 && (
               <>

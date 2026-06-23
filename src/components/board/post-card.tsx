@@ -18,8 +18,31 @@ export function PostCard({ post }: { post: PostWithAuthor }) {
                   고정
                 </span>
               ) : null}
+              {post.board_slug === "qna" && post.question_status && (
+                <span
+                  className={
+                    post.question_status === "solved"
+                      ? "mr-1.5 inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-800"
+                      : "mr-1.5 inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                  }
+                >
+                  {post.question_status === "solved" ? "해결" : "미해결"}
+                </span>
+              )}
               {post.title}
             </h2>
+            {post.courses.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {post.courses.slice(0, 3).map((course) => (
+                  <span
+                    key={course.slug}
+                    className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-900"
+                  >
+                    {course.name}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
               <span className="font-medium text-zinc-700">{authorName}</span>
               <span aria-hidden>·</span>

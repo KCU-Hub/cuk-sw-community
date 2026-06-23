@@ -16,6 +16,8 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { buildViewerKey } from "@/lib/viewer-key";
 import { firstError, formBool } from "@/lib/form";
 
+const NEW_SERIES_TITLE_MAX_LENGTH = 120;
+
 function parseTagList(raw: FormDataEntryValue | null): string[] {
   if (typeof raw !== "string" || raw.trim() === "") return [];
   return Array.from(
@@ -26,6 +28,19 @@ function parseTagList(raw: FormDataEntryValue | null): string[] {
         .filter((t) => t.length > 0),
     ),
   );
+}
+
+function readCourseSlugs(formData: FormData): string[] {
+  const values = formData
+    .getAll("course_slugs")
+    .flatMap((value) => (typeof value === "string" ? [value] : []))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const legacySingle = String(formData.get("course_slug") ?? "").trim();
+  if (legacySingle) values.push(legacySingle);
+
+  return Array.from(new Set(values));
 }
 
 // 폼 → zod 입력 변환. create / update 가 공유.
@@ -41,6 +56,7 @@ function readFormPayload(
   | "is_published"
   | "series_id"
   | "tags"
+  | "course_slugs"
 > {
   const rawTitle = String(formData.get("title") ?? "");
   const rawSlug = String(formData.get("slug") ?? "").trim();
@@ -57,6 +73,7 @@ function readFormPayload(
     is_published: formBool(formData, "is_published", false),
     series_id: String(formData.get("series_id") ?? ""),
     tags: parseTagList(formData.get("tags")),
+    course_slugs: readCourseSlugs(formData),
   };
 }
 
@@ -65,36 +82,123 @@ type ParsedBlogInput = CreateBlogPostInput;
 // profile.id + slug 는 자주 쓰므로 한 번에 묶어 받음.
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-async function upsertMissingTags(
-  supabase: SupabaseServerClient,
-  tags: string[],
-): Promise<void> {
-  if (tags.length === 0) return;
-  const rows = tags.map((slug) => ({ slug, name: slug }));
-  const { error } = await supabase
-    .from("tags")
-    .upsert(rows, { onConflict: "slug", ignoreDuplicates: true });
-  if (error) throw new Error(mapSupabaseError(error));
-}
+type BlogPostEditTarget = {
+  slug: string;
+  author_id: string | null;
+  author: { username: string } | null;
+};
 
 async function syncPostTags(
   supabase: SupabaseServerClient,
   postId: string,
   tags: string[],
 ): Promise<void> {
-  // N 이 10 이하로 cap 되어 있어 delete-all → insert-all 이 최소 로직.
-  const { error: delError } = await supabase
-    .from("blog_post_tags")
-    .delete()
-    .eq("post_id", postId);
-  if (delError) throw new Error(mapSupabaseError(delError));
+  const { error } = await supabase.rpc("set_blog_post_tags", {
+    p_post_id: postId,
+    p_tags: tags,
+  });
+  if (error) throw new Error(mapSupabaseError(error));
+}
 
-  if (tags.length === 0) return;
-  const rows = tags.map((tag_slug) => ({ post_id: postId, tag_slug }));
-  const { error: insError } = await supabase
-    .from("blog_post_tags")
-    .insert(rows);
-  if (insError) throw new Error(mapSupabaseError(insError));
+async function syncPostCourses(
+  supabase: SupabaseServerClient,
+  postId: string,
+  courseSlugs: string[],
+): Promise<void> {
+  const { error } = await supabase.rpc("set_blog_post_courses", {
+    p_post_id: postId,
+    p_course_slugs: courseSlugs,
+  });
+  if (error) throw new Error(mapSupabaseError(error));
+}
+
+async function assertCourseSlugsExist(
+  supabase: SupabaseServerClient,
+  courseSlugs: string[],
+): Promise<void> {
+  if (courseSlugs.length === 0) return;
+
+  const { data, error } = await supabase
+    .from("courses")
+    .select("slug")
+    .in("slug", courseSlugs);
+  if (error) throw new Error(mapSupabaseError(error));
+
+  const found = new Set((data ?? []).map((course) => course.slug));
+  const missing = courseSlugs.filter((courseSlug) => !found.has(courseSlug));
+  if (missing.length > 0) {
+    throw new Error("존재하지 않는 과목이 포함되어 있습니다.");
+  }
+}
+
+async function listBlogPostCourseSlugs(
+  supabase: SupabaseServerClient,
+  postId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("blog_post_courses")
+    .select("course_slug")
+    .eq("post_id", postId);
+  if (error) throw new Error(mapSupabaseError(error));
+  return Array.from(new Set((data ?? []).map((link) => link.course_slug)));
+}
+
+async function getBlogPostEditTarget(
+  supabase: SupabaseServerClient,
+  postId: string,
+): Promise<BlogPostEditTarget> {
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .select("slug, author_id, author:profiles!author_id(username)")
+    .eq("id", postId)
+    .maybeSingle();
+  if (error) throw new Error(mapSupabaseError(error));
+  if (!data) throw new Error("수정할 수 없는 글입니다.");
+  return data as unknown as BlogPostEditTarget;
+}
+
+function readNewSeriesTitle(formData: FormData): string {
+  return String(formData.get("new_series_title") ?? "").trim();
+}
+
+async function resolveSeriesId({
+  supabase,
+  selectedSeriesId,
+  newSeriesTitle,
+  ownerId,
+  requesterId,
+}: {
+  supabase: SupabaseServerClient;
+  selectedSeriesId?: string;
+  newSeriesTitle: string;
+  ownerId: string | null;
+  requesterId: string;
+}): Promise<string> {
+  if (selectedSeriesId || !newSeriesTitle) return selectedSeriesId ?? "";
+  if (newSeriesTitle.length > NEW_SERIES_TITLE_MAX_LENGTH) {
+    throw new Error("시리즈 제목은 최대 120자입니다.");
+  }
+  if (!ownerId) throw new Error("시리즈를 만들 작성자를 찾을 수 없습니다.");
+  if (ownerId !== requesterId) {
+    throw new Error("다른 사용자의 글에는 새 시리즈를 대신 만들 수 없습니다.");
+  }
+
+  const { data, error } = await supabase
+    .from("blog_series")
+    .insert({
+      author_id: ownerId,
+      title: newSeriesTitle,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(mapSupabaseError(error));
+  return data.id;
+}
+
+function revalidateCourseHubs(courseSlugs: string[]): void {
+  for (const courseSlug of new Set(courseSlugs)) {
+    revalidatePath(`/courses/${courseSlug}`);
+  }
 }
 
 function toUpsertRow(input: ParsedBlogInput, authorId: string | null) {
@@ -127,19 +231,30 @@ export async function createBlogPostAction(formData: FormData) {
   await enforceRateLimit(profile.id, "post_create");
 
   const supabase = await createClient();
-  await upsertMissingTags(supabase, parsed.data.tags);
+  await assertCourseSlugsExist(supabase, parsed.data.course_slugs);
+  const seriesId = await resolveSeriesId({
+    supabase,
+    selectedSeriesId: parsed.data.series_id,
+    newSeriesTitle: readNewSeriesTitle(formData),
+    ownerId: profile.id,
+    requesterId: profile.id,
+  });
+  const input = { ...parsed.data, series_id: seriesId };
 
   const { data, error } = await supabase
     .from("blog_posts")
-    .insert(toUpsertRow(parsed.data, profile.id))
+    .insert(toUpsertRow(input, profile.id))
     .select("id, slug")
     .single();
   if (error) mapSlugError(error);
 
-  await syncPostTags(supabase, data.id, parsed.data.tags);
+  await syncPostTags(supabase, data.id, input.tags);
+  await syncPostCourses(supabase, data.id, input.course_slugs);
 
+  revalidatePath("/");
   revalidatePath("/blog");
   revalidatePath(`/blog/${profile.username}`);
+  revalidateCourseHubs(input.course_slugs);
   redirect(`/blog/${profile.username}/${data.slug}`);
 }
 
@@ -154,20 +269,41 @@ export async function updateBlogPostAction(formData: FormData) {
   if (!parsed.success) throw new Error(firstError(parsed.error));
 
   const supabase = await createClient();
-  await upsertMissingTags(supabase, parsed.data.tags);
+  await assertCourseSlugsExist(supabase, parsed.data.course_slugs);
+  const [targetPost, previousCourseSlugs] = await Promise.all([
+    getBlogPostEditTarget(supabase, postIdResult.data),
+    listBlogPostCourseSlugs(supabase, postIdResult.data),
+  ]);
+  const ownerUsername = targetPost.author?.username;
+  if (!ownerUsername) throw new Error("글 작성자 정보를 찾을 수 없습니다.");
+  const seriesId = await resolveSeriesId({
+    supabase,
+    selectedSeriesId: parsed.data.series_id,
+    newSeriesTitle: readNewSeriesTitle(formData),
+    ownerId: targetPost.author_id,
+    requesterId: profile.id,
+  });
+  const input = { ...parsed.data, series_id: seriesId };
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("blog_posts")
-    .update(toUpsertRow(parsed.data, null))
-    .eq("id", postIdResult.data);
+    .update(toUpsertRow(input, null))
+    .eq("id", postIdResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) mapSlugError(error);
+  if (!updated) throw new Error("수정할 수 없는 글입니다.");
 
-  await syncPostTags(supabase, postIdResult.data, parsed.data.tags);
+  await syncPostTags(supabase, postIdResult.data, input.tags);
+  await syncPostCourses(supabase, postIdResult.data, input.course_slugs);
 
+  revalidatePath("/");
   revalidatePath("/blog");
-  revalidatePath(`/blog/${profile.username}`);
-  revalidatePath(`/blog/${profile.username}/${parsed.data.slug}`);
-  redirect(`/blog/${profile.username}/${parsed.data.slug}`);
+  revalidatePath(`/blog/${ownerUsername}`);
+  revalidatePath(`/blog/${ownerUsername}/${targetPost.slug}`);
+  revalidatePath(`/blog/${ownerUsername}/${input.slug}`);
+  revalidateCourseHubs([...previousCourseSlugs, ...input.course_slugs]);
+  redirect(`/blog/${ownerUsername}/${input.slug}`);
 }
 
 export async function deleteBlogPostAction(formData: FormData) {
@@ -178,13 +314,22 @@ export async function deleteBlogPostAction(formData: FormData) {
   if (!postIdResult.success) throw new Error(firstError(postIdResult.error));
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const previousCourseSlugs = await listBlogPostCourseSlugs(
+    supabase,
+    postIdResult.data,
+  );
+  const { data: deleted, error } = await supabase
     .from("blog_posts")
     .update({ is_deleted: true })
-    .eq("id", postIdResult.data);
+    .eq("id", postIdResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(mapSupabaseError(error));
+  if (!deleted) throw new Error("삭제할 수 없는 글입니다.");
 
+  revalidatePath("/");
   revalidatePath("/blog");
+  revalidateCourseHubs(previousCourseSlugs);
   redirect("/blog");
 }
 

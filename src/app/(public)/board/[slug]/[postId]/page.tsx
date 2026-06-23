@@ -9,6 +9,7 @@ import { CommentForm } from "@/components/board/comment-form";
 import { LikeButton } from "@/components/board/like-button";
 import { DeletePostButton } from "@/components/board/delete-post-button";
 import { PostViewTracker } from "@/components/board/post-view-tracker";
+import { reopenQuestionAction } from "@/actions/posts";
 import { formatDateTimeKo } from "@/lib/format";
 import { isBoardSlug } from "@/lib/constants";
 import { formatAuthorName } from "@/lib/author";
@@ -46,6 +47,8 @@ export default async function PostDetailPage({
 
   const tree = buildCommentTree(comments);
   const canEdit = isAuthor || isAdmin;
+  const isQuestion = slug === "qna";
+  const isSolved = post.question_status === "solved";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
@@ -60,6 +63,43 @@ export default async function PostDetailPage({
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">
         {post.title}
       </h1>
+
+      {(isQuestion || post.courses.length > 0) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {isQuestion && (
+            <span
+              className={
+                isSolved
+                  ? "rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800"
+                  : "rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+              }
+            >
+              {isSolved ? "해결됨" : "미해결"}
+            </span>
+          )}
+          {post.courses.map((course) => (
+            <Link
+              key={course.slug}
+              href={`/courses/${course.slug}`}
+              className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-900 transition hover:bg-brand-100"
+            >
+              {course.name}
+            </Link>
+          ))}
+          {isQuestion && isSolved && canEdit && (
+            <form action={reopenQuestionAction}>
+              <input type="hidden" name="postId" value={postId} />
+              <input type="hidden" name="boardSlug" value={slug} />
+              <button
+                type="submit"
+                className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+              >
+                다시 열기
+              </button>
+            </form>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex items-center gap-3 text-sm text-zinc-500">
         <span className="font-medium text-zinc-700">{formatAuthorName(post.author)}</span>
@@ -120,6 +160,8 @@ export default async function PostDetailPage({
               boardSlug={slug}
               currentUserId={profile?.id ?? null}
               isAdmin={isAdmin}
+              acceptedCommentId={post.accepted_comment_id}
+              canAcceptAnswer={isQuestion && canEdit}
             />
           ) : (
             <p className="text-sm text-zinc-400">아직 댓글이 없습니다.</p>

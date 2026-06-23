@@ -8,6 +8,8 @@ export function UserCourseForm({
   action,
   mode,
   defaultSemester,
+  defaultCourseName,
+  defaultCourseCode,
   initial,
   backHref,
 }: {
@@ -15,6 +17,8 @@ export function UserCourseForm({
   mode: "create" | "edit";
   // 새 row 의 학기 placeholder. 마지막 입력 학기를 그대로 이어가게.
   defaultSemester?: string;
+  defaultCourseName?: string;
+  defaultCourseCode?: string;
   initial?: UserCourse;
   backHref: string;
 }) {
@@ -49,7 +53,7 @@ export function UserCourseForm({
           name="course_code"
           type="text"
           maxLength={40}
-          defaultValue={initial?.course_code ?? ""}
+          defaultValue={initial?.course_code ?? defaultCourseCode ?? ""}
           placeholder="SW201"
           className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
         />
@@ -65,7 +69,7 @@ export function UserCourseForm({
           type="text"
           required
           maxLength={80}
-          defaultValue={initial?.course_name ?? ""}
+          defaultValue={initial?.course_name ?? defaultCourseName ?? ""}
           placeholder="자료구조"
           className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
         />

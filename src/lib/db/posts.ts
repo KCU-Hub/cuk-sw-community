@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { AUTHOR_EMBED } from "@/lib/db/selects";
-import type { Board, BoardSlug, PostWithAuthor } from "@/lib/types";
+import type { Board, BoardSlug, Course, PostWithAuthor } from "@/lib/types";
 
 // TODO(2nd-pass-audit-2026-05-21): files in src/lib/db/ use `as unknown as X`
 // to bridge PostgREST embed result shapes (Supabase's generated row types
@@ -8,13 +8,27 @@ import type { Board, BoardSlug, PostWithAuthor } from "@/lib/types";
 // blog.ts / comments.ts / courses.ts. Replacement would be a per-query
 // runtime parser (zod) which costs verbosity for marginal type-safety gain.
 
-const POST_AUTHOR_SELECT = `*, ${AUTHOR_EMBED}`;
+const COURSE_EMBED = "post_courses(course:courses(slug, name, code, description, semester_hint, sort_order))";
+const POST_AUTHOR_SELECT = `*, ${AUTHOR_EMBED}, ${COURSE_EMBED}`;
 
 // With the viewer's post_likes row filtered at the query level via
 // .eq('post_likes.user_id', viewerId). When liked, post_likes comes back
 // as [{user_id}]; otherwise []. We collapse to a boolean and drop the
 // array so callers get a stable PostWithAuthor shape.
-const POST_AUTHOR_LIKED_SELECT = `*, ${AUTHOR_EMBED}, post_likes!left(user_id)`;
+const POST_AUTHOR_LIKED_SELECT = `*, ${AUTHOR_EMBED}, ${COURSE_EMBED}, post_likes!left(user_id)`;
+
+type RawPostRow = PostWithAuthor & {
+  post_courses?: Array<{ course: Course | null }>;
+};
+
+function normalizePost(row: RawPostRow): PostWithAuthor {
+  const courses = (row.post_courses ?? [])
+    .map((item) => item.course)
+    .filter((course): course is Course => course !== null);
+  const { post_courses: _drop, ...rest } = row;
+  void _drop;
+  return { ...rest, courses };
+}
 
 export async function listBoards(): Promise<Board[]> {
   const supabase = await createClient();
@@ -39,13 +53,21 @@ export async function getBoardBySlug(slug: BoardSlug): Promise<Board | null> {
 
 export async function getPostsByBoard(
   slug: BoardSlug,
-  { page = 1, pageSize = 20 }: { page?: number; pageSize?: number } = {},
+  {
+    page = 1,
+    pageSize = 20,
+    questionStatus,
+  }: {
+    page?: number;
+    pageSize?: number;
+    questionStatus?: "open" | "solved";
+  } = {},
 ): Promise<{ posts: PostWithAuthor[]; total: number }> {
   const supabase = await createClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  const { data, error, count } = await supabase
+  let query = supabase
     .from("posts")
     .select(POST_AUTHOR_SELECT, { count: "exact" })
     .eq("board_slug", slug)
@@ -54,13 +76,19 @@ export async function getPostsByBoard(
     .order("created_at", { ascending: false })
     .range(from, to);
 
+  if (slug === "qna" && questionStatus) {
+    query = query.eq("question_status", questionStatus);
+  }
+
+  const { data, error, count } = await query;
+
   if (error) throw error;
   // PostgREST embed (`author:profiles!author_id(...)`) 는 supabase-js
   // 의 `.select(literal-string)` 타입 추론 범위 밖이라 `data` 가
   // `any[]` 로 좁혀진다. generated 타입 도입 후에도 embed relation 은
   // 수동 타입이 필요해 캐스트 자체는 남음.
   return {
-    posts: (data ?? []) as unknown as PostWithAuthor[],
+    posts: ((data ?? []) as unknown as RawPostRow[]).map(normalizePost),
     total: count ?? 0,
   };
 }
@@ -85,7 +113,10 @@ export async function getPostById(
       .maybeSingle();
     if (error) throw error;
     if (!data) return null;
-    return { ...(data as unknown as PostWithAuthor), liked_by_me: false };
+    return {
+      ...normalizePost(data as unknown as RawPostRow),
+      liked_by_me: false,
+    };
   }
 
   const { data, error } = await supabase
@@ -98,11 +129,11 @@ export async function getPostById(
   if (!data) return null;
 
   // post_likes 는 filter 때문에 [] 또는 [{user_id: viewerId}] 중 하나.
-  const row = data as unknown as PostWithAuthor & {
+  const row = data as unknown as RawPostRow & {
     post_likes?: Array<{ user_id: string }>;
   };
   const liked = (row.post_likes?.length ?? 0) > 0;
   const { post_likes: _drop, ...rest } = row;
   void _drop;
-  return { ...rest, liked_by_me: liked };
+  return { ...normalizePost(rest), liked_by_me: liked };
 }

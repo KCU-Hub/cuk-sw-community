@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth/require-user";
 import { getPostById } from "@/lib/db/posts";
+import { listCourses } from "@/lib/db/courses";
 import { updatePostAction } from "@/actions/posts";
+import { CourseCheckboxList } from "@/components/courses/course-checkbox-list";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import { isBoardSlug } from "@/lib/constants";
 
@@ -19,7 +21,10 @@ export default async function EditPostPage({
   if (!isBoardSlug(slug)) notFound();
 
   const profile = await requireProfile();
-  const post = await getPostById(postId);
+  const [post, courses] = await Promise.all([
+    getPostById(postId),
+    listCourses(),
+  ]);
 
   if (!post || post.board_slug !== slug) notFound();
 
@@ -56,6 +61,12 @@ export default async function EditPostPage({
             className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           />
         </div>
+
+        <CourseCheckboxList
+          courses={courses}
+          selectedSlugs={post.courses.map((course) => course.slug)}
+          helpText="최대 3개까지 연결할 수 있습니다. 질문게시판 글은 과목과 연결하면 과목 페이지에도 함께 표시됩니다."
+        />
 
         <div>
           <label

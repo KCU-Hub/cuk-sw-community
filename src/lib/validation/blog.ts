@@ -9,6 +9,8 @@ export function isTagSlug(value: string): boolean {
   return TAG_SLUG_RE.test(value);
 }
 
+const COURSE_SLUG_RE = /^[a-z0-9-]+$/;
+
 export const blogPostIdSchema = z
   .string()
   .uuid({ message: "올바른 글이 아닙니다." });
@@ -56,6 +58,17 @@ export const createBlogPostSchema = z.object({
         .regex(TAG_SLUG_RE, { message: "tag slug 가 올바르지 않습니다." }),
     )
     .max(10, { message: "태그는 최대 10 개까지 달 수 있습니다." })
+    .default([]),
+  course_slugs: z
+    .array(
+      z
+        .string()
+        .trim()
+        .regex(COURSE_SLUG_RE, {
+          message: "과목 정보가 올바르지 않습니다.",
+        }),
+    )
+    .max(3, { message: "과목은 최대 3개까지 연결할 수 있습니다." })
     .default([]),
 });
 

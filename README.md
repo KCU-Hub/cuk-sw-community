@@ -9,7 +9,7 @@
 
 ## 한눈에 보기
 
-- **Currently implemented** — Phase 1~5 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0017, 테스트 47건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA), GitHub Actions CI (lint + typecheck + vitest + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
+- **Currently implemented** — Phase 1~6 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자 / 과목 중심 커뮤니티 루프) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0019, 테스트 106건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA / 이메일 도메인 게이트), GitHub Actions CI (lint + typecheck + vitest + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
 - **Planned** — 프로덕션 배포. 베이스 row 타입을 `src/lib/types.generated.ts` 로 단일화 (`src/lib/types.ts` 는 `PostWithAuthor` / `CommentNode` 같은 도메인 타입만 유지).
 - **Design intent** — Server Actions = API · Supabase RLS = 권한 경계. 자료실 카탈로그 (`courses`) 와 개인 학점 기록 (`user_courses`) 을 의도적으로 분리: 전자는 학부 공통 카탈로그, 후자는 사용자가 들은 임의 과목을 자유 입력 (학기 문자열도 자유 입력). 댓글 depth cap 은 UI + DB trigger 이중 가드. 폰트 (Pretendard) 는 self-host — 외부 CDN 요청 0건이 CSP 의 가드레일.
 - **Non-goals** — 모바일 앱 · 실시간 채팅 · 다국어. 한국어 + CUK 학부 학생 한정. 익명 외부 사용자 / 공개 SaaS 가 아님.
@@ -23,8 +23,8 @@
 | --- | --- | --- |
 | 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, `/me`, profiles/boards/courses/tags 시드, error/loading/404, 이메일 확인 플로우, a11y |
 | 2. 포럼 | ✅ | posts/comments/post_likes, RLS, 마크다운 (sanitize + highlight.js), 게시판 목록/상세/작성/수정, 댓글 트리 + depth cap, 좋아요 (optimistic), 조회수 dedupe |
-| 3. 블로그 | ✅ | blog_posts / blog_series / blog_post_tags, velog 스타일 카드 + 태그 + 시리즈, draft, view count |
-| 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB), 종류 필터 |
+| 3. 블로그 | ✅ | blog_posts / blog_series / blog_post_tags, velog 스타일 카드 + 태그 + 시리즈 생성, draft, view count |
+| 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB), 종류 필터, 과목별 질문/학습 기록 허브 |
 | 5. 관리자 + OAuth + 보안 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, `/admin/users` 콘솔, CSP/보안 헤더, sanitize 회귀 테스트 |
 | 6. 개인 학점 관리 | ✅ | `user_courses` 자유 입력 + 4.5 만점 GPA + P/NP 제외 + `is_excluded` 행 단위 제외 + 마일스톤 (B / B+ / 조기졸업 4.0 / A / A+) |
 | CI | ✅ | `.github/workflows/ci.yml` — `quality` (lint · typecheck · vitest) + `build` (`next build` with placeholder env). `actions/cache@v4` 로 `.next/cache` 재사용. Top-level `permissions: contents: read` |
@@ -75,7 +75,7 @@ cp .env.local.example .env.local
 
 #### 옵션 A (Cloud) — Supabase 대시보드의 SQL Editor 에서 차례로 실행
 
-`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0017_user_courses.sql`).
+`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0019_review_fixes.sql`).
 
 #### 옵션 B (Local) — CLI 가 자동 적용
 
@@ -103,7 +103,18 @@ npm run dev
 
 http://localhost:3000 으로 접속.
 
-### 7. (권장) OAuth 프로바이더 연결
+### 7. (프로덕션 권장) 가입 이메일 도메인 제한
+
+프로덕션에서 학부 구성원 한정으로 운영하려면 서버 전용 env 를 설정합니다.
+비워두면 로컬 개발처럼 모든 이메일을 허용합니다.
+
+```bash
+ALLOWED_SIGNUP_EMAIL_DOMAINS=example.ac.kr,*.example.ac.kr
+```
+
+이 값은 이메일/비밀번호 가입, 비밀번호 로그인, OAuth 콜백 모두에 적용됩니다.
+
+### 8. (권장) OAuth 프로바이더 연결
 
 학부 학생들의 가입 장벽을 줄이기 위해 **Google / Kakao** 소셜 로그인을
 권장합니다. Supabase 대시보드 기준 세팅:
@@ -120,7 +131,7 @@ http://localhost:3000 으로 접속.
 코드 쪽은 이미 `signInWithProviderAction` + `<OAuthButtons>` 이 붙어
 있어 프로바이더만 켜면 바로 `/login` / `/signup` 에서 버튼이 동작합니다.
 
-### 8. (권장) 타입 생성
+### 9. (권장) 타입 생성
 
 마이그레이션을 추가/수정한 뒤엔 Supabase 스키마와 TypeScript 타입의 드리프트를
 막기 위해 타입을 재생성해주세요. 결과물 (`src/lib/types.generated.ts`) 은 커밋
