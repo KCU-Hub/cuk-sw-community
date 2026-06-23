@@ -5,7 +5,7 @@
 Run these before a public beta deploy:
 
 ```bash
-npm run check:production-env
+VERCEL_ENV=production npm run check:production-env
 npm run typecheck
 npm run lint
 npm run test:run
@@ -16,12 +16,16 @@ npm audit --audit-level=low
 If Supabase CLI and Docker are available, replay all migrations before deploy:
 
 ```bash
+npm run db:start
 npm run db:reset
 npm run types:gen:local
 ```
 
-Commit `src/lib/types.generated.ts` after type generation when a real Supabase
-schema is available.
+`npm run db:start` excludes the local vector service because this app does not
+use it and the DB/auth/storage checks do not depend on it.
+
+For a manual Supabase Cloud deploy, apply every file in `supabase/migrations/`
+in numeric order through `0021_public_table_grants.sql`.
 
 ## Production Environment
 
