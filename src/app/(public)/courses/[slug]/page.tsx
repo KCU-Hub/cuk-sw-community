@@ -4,6 +4,7 @@ import {
   getCourseBySlug,
   getCourseMaterialStats,
   listCourseMaterials,
+  listCourseRelatedBlogPosts,
   listCourseRelatedPosts,
 } from "@/lib/db/courses";
 import { getCurrentProfile } from "@/lib/auth/get-user";
@@ -15,7 +16,11 @@ import {
   MATERIAL_TYPE_LABELS,
   isMaterialType,
 } from "@/lib/types";
-import type { CourseMaterialWithAuthor, PostWithAuthor } from "@/lib/types";
+import type {
+  BlogPostWithAuthor,
+  CourseMaterialWithAuthor,
+  PostWithAuthor,
+} from "@/lib/types";
 
 const PAGE_SIZE = 20;
 
@@ -49,17 +54,19 @@ export default async function CoursePage({
   const search = (q ?? "").slice(0, 80).trim();
   const type = typeStr && isMaterialType(typeStr) ? typeStr : undefined;
 
-  const [{ materials, total }, materialStats, relatedPosts] = await Promise.all([
-    listCourseMaterials({
-      courseSlug: slug,
-      page,
-      pageSize: PAGE_SIZE,
-      type,
-      search,
-    }),
-    getCourseMaterialStats(slug),
-    listCourseRelatedPosts({ courseSlug: slug }),
-  ]);
+  const [{ materials, total }, materialStats, relatedPosts, relatedBlogPosts] =
+    await Promise.all([
+      listCourseMaterials({
+        courseSlug: slug,
+        page,
+        pageSize: PAGE_SIZE,
+        type,
+        search,
+      }),
+      getCourseMaterialStats(slug),
+      listCourseRelatedPosts({ courseSlug: slug }),
+      listCourseRelatedBlogPosts({ courseSlug: slug }),
+    ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const canContribute = Boolean(profile);
   const paginationParams = new URLSearchParams();
@@ -161,7 +168,12 @@ export default async function CoursePage({
             </button>
           </form>
 
-          <MaterialList materials={materials} slug={slug} search={search} type={type} />
+          <MaterialList
+            materials={materials}
+            slug={slug}
+            search={search}
+            type={type}
+          />
 
           <Pagination
             currentPage={page}
@@ -216,6 +228,19 @@ export default async function CoursePage({
               </Link>
             </div>
             <RelatedPosts posts={relatedPosts} />
+          </section>
+
+          <section className="rounded-md border border-zinc-100 bg-white p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-semibold text-zinc-900">학습 기록</h2>
+              <Link
+                href="/blog"
+                className="text-xs font-medium text-brand-700 hover:text-brand-800"
+              >
+                블로그
+              </Link>
+            </div>
+            <RelatedBlogPosts posts={relatedBlogPosts} />
           </section>
         </aside>
       </div>
@@ -347,6 +372,41 @@ function RelatedPosts({ posts }: { posts: PostWithAuthor[] }) {
           </Link>
         </li>
       ))}
+    </ul>
+  );
+}
+
+function RelatedBlogPosts({ posts }: { posts: BlogPostWithAuthor[] }) {
+  if (posts.length === 0) {
+    return (
+      <p className="mt-3 rounded-md bg-zinc-50 px-3 py-6 text-center text-sm text-zinc-400">
+        아직 연결된 기록이 없습니다.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="mt-3 divide-y divide-zinc-100">
+      {posts.map((post) => {
+        const username = post.author?.username;
+        const href = username ? `/blog/${username}/${post.slug}` : "/blog";
+        return (
+          <li key={post.id}>
+            <Link
+              href={href}
+              className="block py-3 transition hover:text-brand-700"
+            >
+              <h3 className="line-clamp-2 text-sm font-medium text-zinc-900">
+                {post.title}
+              </h3>
+              <p className="mt-1 text-xs text-zinc-500">
+                {formatAuthorName(post.author)} ·{" "}
+                {formatRelativeKo(post.published_at ?? post.created_at)}
+              </p>
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

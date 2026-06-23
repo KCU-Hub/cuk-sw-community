@@ -93,7 +93,11 @@ export default async function HomePage() {
   const profile = await getCurrentProfile();
 
   if (profile) {
-    const [{ posts: questions }, { posts: blogs }, userCourses] =
+    const [
+      { posts: questions, total: openQuestionCount },
+      { posts: blogs },
+      userCourses,
+    ] =
       await Promise.all([
         getPostsByBoard("qna", {
           page: 1,
@@ -107,6 +111,7 @@ export default async function HomePage() {
       <AuthedHome
         profile={profile}
         questions={questions}
+        openQuestionCount={openQuestionCount}
         blogs={blogs}
         courseCount={userCourses.length}
         gpa={summarize(userCourses).gpa}
@@ -171,12 +176,14 @@ function VisitorHome() {
 function AuthedHome({
   profile,
   questions,
+  openQuestionCount,
   blogs,
   courseCount,
   gpa,
 }: {
   profile: Profile;
   questions: PostWithAuthor[];
+  openQuestionCount: number;
   blogs: BlogPostWithAuthor[];
   courseCount: number;
   gpa: number | null;
@@ -228,7 +235,7 @@ function AuthedHome({
         />
         <DashboardMetric
           label="미해결 질문"
-          value={`${questions.length}`}
+          value={`${openQuestionCount}`}
           href="/board/qna?status=open"
         />
       </section>

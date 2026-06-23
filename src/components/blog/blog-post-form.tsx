@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CourseCheckboxList } from "@/components/courses/course-checkbox-list";
 import { MarkdownEditor } from "@/components/markdown/markdown-editor";
 import type { BlogPostWithAuthor, BlogSeries, Course } from "@/lib/types";
 
@@ -22,6 +23,9 @@ export function BlogPostForm({
   backHref: string;
 }) {
   const submitLabel = mode === "create" ? "발행" : "수정";
+  const selectedCourseSlugs =
+    initialPost?.courses.map((course) => course.slug) ??
+    (initialCourseSlug ? [initialCourseSlug] : []);
 
   return (
     <form action={action} className="space-y-6">
@@ -106,28 +110,11 @@ export function BlogPostForm({
         />
       </div>
 
-      <div>
-        <label htmlFor="course_slugs" className="block text-sm font-medium text-zinc-700">
-          연결 과목
-        </label>
-        <select
-          id="course_slugs"
-          name="course_slugs"
-          defaultValue={initialPost?.courses[0]?.slug ?? initialCourseSlug ?? ""}
-          className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-        >
-          <option value="">과목 연결 없음</option>
-          {courseOptions.map((course) => (
-            <option key={course.slug} value={course.slug}>
-              {course.name}
-              {course.code ? ` (${course.code})` : ""}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs text-zinc-400">
-          과목과 연결하면 해당 과목 페이지에서 학습 기록으로 함께 보입니다.
-        </p>
-      </div>
+      <CourseCheckboxList
+        courses={courseOptions}
+        selectedSlugs={selectedCourseSlugs}
+        helpText="최대 3개까지 연결할 수 있습니다. 연결한 과목 페이지에 학습 기록으로 함께 보입니다."
+      />
 
       <div>
         <label htmlFor="series_id" className="block text-sm font-medium text-zinc-700">
@@ -146,6 +133,20 @@ export function BlogPostForm({
             </option>
           ))}
         </select>
+        <label
+          htmlFor="new_series_title"
+          className="mt-3 block text-sm font-medium text-zinc-700"
+        >
+          새 시리즈 만들기
+        </label>
+        <input
+          id="new_series_title"
+          name="new_series_title"
+          type="text"
+          maxLength={120}
+          placeholder="선택한 시리즈가 없을 때 새로 만듭니다"
+          className="mt-1 block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        />
       </div>
 
       <div>

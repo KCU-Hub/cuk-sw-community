@@ -15,7 +15,7 @@ const POST_AUTHOR_SELECT = `*, ${AUTHOR_EMBED}, ${COURSE_EMBED}`;
 // .eq('post_likes.user_id', viewerId). When liked, post_likes comes back
 // as [{user_id}]; otherwise []. We collapse to a boolean and drop the
 // array so callers get a stable PostWithAuthor shape.
-const POST_AUTHOR_LIKED_SELECT = `*, ${AUTHOR_EMBED}, post_likes!left(user_id)`;
+const POST_AUTHOR_LIKED_SELECT = `*, ${AUTHOR_EMBED}, ${COURSE_EMBED}, post_likes!left(user_id)`;
 
 type RawPostRow = PostWithAuthor & {
   post_courses?: Array<{ course: Course | null }>;
