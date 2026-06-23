@@ -7,6 +7,10 @@ import type { Provider } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema } from "@/lib/validation/auth";
 import { mapSupabaseError } from "@/lib/errors";
+import {
+  isSignupEmailDomainAllowed,
+  signupEmailDomainErrorMessage,
+} from "@/lib/auth/email-domain";
 
 // Providers we've wired up in Supabase Dashboard → Authentication → Providers.
 // Adding a new one here requires (1) enabling it in the dashboard and (2)
@@ -40,6 +44,9 @@ export async function signInAction(formData: FormData) {
   if (!parsed.success) {
     redirectWithError("/login", parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.");
   }
+  if (!isSignupEmailDomainAllowed(parsed.data.email)) {
+    redirectWithError("/login", signupEmailDomainErrorMessage());
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
@@ -58,6 +65,9 @@ export async function signUpAction(formData: FormData) {
 
   if (!parsed.success) {
     redirectWithError("/signup", parsed.error.issues[0]?.message ?? "입력값을 확인해주세요.");
+  }
+  if (!isSignupEmailDomainAllowed(parsed.data.email)) {
+    redirectWithError("/signup", signupEmailDomainErrorMessage());
   }
 
   const supabase = await createClient();

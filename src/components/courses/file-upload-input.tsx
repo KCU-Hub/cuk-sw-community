@@ -42,11 +42,6 @@ export function FileUploadInput({
         .upload(nextPath, file, { cacheControl: "3600", upsert: false });
       if (uploadError) throw uploadError;
 
-      // 이전 파일이 있었으면 삭제 시도 — 실패해도 무시 (orphan 방지 best-effort)
-      if (path && path !== nextPath) {
-        await supabase.storage.from(COURSE_FILES_BUCKET).remove([path]);
-      }
-
       setPath(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "업로드에 실패했습니다.");
@@ -57,8 +52,6 @@ export function FileUploadInput({
 
   async function handleClear() {
     if (!path) return;
-    const supabase = createClient();
-    await supabase.storage.from(COURSE_FILES_BUCKET).remove([path]);
     setPath("");
     if (inputRef.current) inputRef.current.value = "";
   }

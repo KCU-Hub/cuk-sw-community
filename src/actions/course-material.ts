@@ -8,12 +8,19 @@ import {
   createCourseMaterialSchema,
   updateCourseMaterialSchema,
   courseMaterialIdSchema,
-  courseSlugSchema,
 } from "@/lib/validation/course-material";
 import { mapSupabaseError } from "@/lib/errors";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { firstError } from "@/lib/form";
 import type { Profile } from "@/lib/types";
+import { COURSE_FILES_BUCKET } from "@/lib/constants";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+type CourseMaterialActionTarget = {
+  course_slug: string;
+  file_path: string | null;
+};
 
 // 업로드된 파일 경로의 첫 segment 는 업로더 user_id 여야 한다 (Storage RLS
 // 와 동일 규칙). zod 는 형태만 보장하므로 소유권은 여기서 강제.
@@ -32,6 +39,28 @@ function assertFilePathOwnership(
   if (first === profile.id) return;
   if (profile.role === "admin") return; // 모더레이션 시 다른 사용자 path 허용
   throw new Error("업로드 경로의 소유자와 계정이 일치하지 않습니다.");
+}
+
+async function getCourseMaterialActionTarget(
+  supabase: SupabaseServerClient,
+  materialId: string,
+): Promise<CourseMaterialActionTarget> {
+  const { data, error } = await supabase
+    .from("course_materials")
+    .select("course_slug, file_path")
+    .eq("id", materialId)
+    .maybeSingle();
+  if (error) throw new Error(mapSupabaseError(error));
+  if (!data) throw new Error("자료를 찾을 수 없습니다.");
+  return data as CourseMaterialActionTarget;
+}
+
+async function cleanupCourseFile(
+  supabase: SupabaseServerClient,
+  filePath: string | null,
+): Promise<void> {
+  if (!filePath) return;
+  await supabase.storage.from(COURSE_FILES_BUCKET).remove([filePath]);
 }
 
 export async function createCourseMaterialAction(formData: FormData) {
@@ -76,11 +105,8 @@ export async function updateCourseMaterialAction(formData: FormData) {
   const profile = await requireProfile();
 
   const materialIdRaw = String(formData.get("materialId") ?? "");
-  const courseSlugRaw = String(formData.get("course_slug") ?? "");
   const idResult = courseMaterialIdSchema.safeParse(materialIdRaw);
-  const slugResult = courseSlugSchema.safeParse(courseSlugRaw);
   if (!idResult.success) throw new Error(firstError(idResult.error));
-  if (!slugResult.success) throw new Error(firstError(slugResult.error));
 
   const parsed = updateCourseMaterialSchema.safeParse({
     material_type: formData.get("material_type") ?? "other",
@@ -93,24 +119,11 @@ export async function updateCourseMaterialAction(formData: FormData) {
 
   const supabase = await createClient();
 
-  // assertFilePathOwnership 는 빈 file_path 면 즉시 통과하므로 그 케이스
-  // (텍스트만 수정) 에는 lookup 자체를 건너뛴다. file_path 가 들어왔을
-  // 때만 기존 row 의 path 를 가져와 "변경 없음 ⇒ admin 모더레이션 패스"
-  // 분기를 활성화.
+  const target = await getCourseMaterialActionTarget(supabase, idResult.data);
   const submittedFilePath = parsed.data.file_path ?? "";
-  let previousFilePath: string | null = null;
-  if (submittedFilePath) {
-    const { data: existing, error: lookupError } = await supabase
-      .from("course_materials")
-      .select("file_path")
-      .eq("id", idResult.data)
-      .maybeSingle();
-    if (lookupError) throw new Error(mapSupabaseError(lookupError));
-    previousFilePath = existing?.file_path ?? null;
-  }
-  assertFilePathOwnership(submittedFilePath, profile, previousFilePath);
+  assertFilePathOwnership(submittedFilePath, profile, target.file_path);
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("course_materials")
     .update({
       material_type: parsed.data.material_type,
@@ -119,31 +132,41 @@ export async function updateCourseMaterialAction(formData: FormData) {
       external_url: parsed.data.external_url || null,
       file_path: parsed.data.file_path || null,
     })
-    .eq("id", idResult.data);
+    .eq("id", idResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(mapSupabaseError(error));
+  if (!updated) throw new Error("수정할 수 없는 자료입니다.");
 
-  revalidatePath(`/courses/${slugResult.data}`);
-  revalidatePath(`/courses/${slugResult.data}/${idResult.data}`);
-  redirect(`/courses/${slugResult.data}/${idResult.data}`);
+  if (target.file_path && target.file_path !== submittedFilePath) {
+    await cleanupCourseFile(supabase, target.file_path);
+  }
+
+  revalidatePath(`/courses/${target.course_slug}`);
+  revalidatePath(`/courses/${target.course_slug}/${idResult.data}`);
+  redirect(`/courses/${target.course_slug}/${idResult.data}`);
 }
 
 export async function deleteCourseMaterialAction(formData: FormData) {
   await requireProfile();
 
   const materialIdRaw = String(formData.get("materialId") ?? "");
-  const courseSlugRaw = String(formData.get("course_slug") ?? "");
   const idResult = courseMaterialIdSchema.safeParse(materialIdRaw);
-  const slugResult = courseSlugSchema.safeParse(courseSlugRaw);
   if (!idResult.success) throw new Error(firstError(idResult.error));
-  if (!slugResult.success) throw new Error(firstError(slugResult.error));
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const target = await getCourseMaterialActionTarget(supabase, idResult.data);
+  const { data: deleted, error } = await supabase
     .from("course_materials")
     .update({ is_deleted: true })
-    .eq("id", idResult.data);
+    .eq("id", idResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(mapSupabaseError(error));
+  if (!deleted) throw new Error("삭제할 수 없는 자료입니다.");
 
-  revalidatePath(`/courses/${slugResult.data}`);
-  redirect(`/courses/${slugResult.data}`);
+  await cleanupCourseFile(supabase, target.file_path);
+
+  revalidatePath(`/courses/${target.course_slug}`);
+  redirect(`/courses/${target.course_slug}`);
 }
