@@ -31,10 +31,12 @@ export async function updateProfileAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("profiles")
     .update(parsed.data)
-    .eq("id", profile.id);
+    .eq("id", profile.id)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     const code = typeof error.code === "string" ? error.code : null;
@@ -44,6 +46,14 @@ export async function updateProfileAction(
         code === PG_ERROR_CODES.UNIQUE_VIOLATION
           ? "이미 사용 중인 사용자명입니다."
           : mapSupabaseError(error),
+      fieldErrors: {},
+    };
+  }
+
+  if (!updated) {
+    return {
+      status: "error",
+      message: "수정할 수 없는 프로필입니다.",
       fieldErrors: {},
     };
   }

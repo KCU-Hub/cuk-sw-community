@@ -4,6 +4,18 @@ import type { NextConfig } from "next";
 // env is inlined already; we mirror the same value into the header.
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
+if (
+  process.env.VERCEL_ENV === "production" &&
+  !(process.env.ALLOWED_SIGNUP_EMAIL_DOMAINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .some(Boolean)
+) {
+  throw new Error(
+    "Production admission gate is not configured: ALLOWED_SIGNUP_EMAIL_DOMAINS",
+  );
+}
+
 // Minimal sane CSP. Goals:
 //   - No third-party fonts (Pretendard is now bundled via next/font/local).
 //   - Allow Supabase API/realtime over HTTPS + WSS.
@@ -57,6 +69,14 @@ const SECURITY_HEADERS = [
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   },
   { key: "Content-Security-Policy", value: buildCsp() },
+  ...(process.env.NODE_ENV === "production"
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]
+    : []),
 ];
 
 const nextConfig: NextConfig = {

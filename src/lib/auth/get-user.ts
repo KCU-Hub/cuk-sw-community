@@ -19,11 +19,7 @@ const fetchUserAndProfile = cache(async (): Promise<UserAndProfile> => {
     } = await supabase.auth.getUser();
     if (!user) return { user: null, profile: null };
 
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data } = await supabase.rpc("get_current_profile").maybeSingle();
     return { user, profile: (data as Profile | null) ?? null };
   } catch {
     return { user: null, profile: null };

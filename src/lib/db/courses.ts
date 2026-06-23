@@ -250,13 +250,13 @@ export async function getCourseMaterialById(
   return (data as unknown as CourseMaterialWithAuthor | null) ?? null;
 }
 
-// Storage public URL — bucket 은 public=true 라 서명 없이 접근 가능하지만
-// URL 조립은 supabase-js 의 getPublicUrl 에게 위임해 per-segment 인코딩
-// 차이를 피한다.
-export async function getCourseFilePublicUrl(path: string): Promise<string> {
+// Storage download URL — bucket is private, so detail pages mint a short-lived
+// signed URL instead of exposing permanent object URLs.
+export async function getCourseFileDownloadUrl(path: string): Promise<string> {
   const supabase = await createClient();
-  const { data } = supabase.storage
+  const { data, error } = await supabase.storage
     .from(COURSE_FILES_BUCKET)
-    .getPublicUrl(path);
-  return data.publicUrl;
+    .createSignedUrl(path, 10 * 60);
+  if (error) throw error;
+  return data.signedUrl;
 }

@@ -9,7 +9,7 @@
 
 ## 한눈에 보기
 
-- **Currently implemented** — Phase 1~6 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자 / 과목 중심 커뮤니티 루프) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0019, 테스트 106건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA / 이메일 도메인 게이트), GitHub Actions CI (lint + typecheck + vitest + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
+- **Currently implemented** — Phase 1~6 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자 / 과목 중심 커뮤니티 루프) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0020, 테스트 115건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA / 이메일 도메인 게이트 / 자료실 validation / public-beta RLS migration guard), GitHub Actions CI (lint + typecheck + vitest + production env guard + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
 - **Planned** — 프로덕션 배포. 베이스 row 타입을 `src/lib/types.generated.ts` 로 단일화 (`src/lib/types.ts` 는 `PostWithAuthor` / `CommentNode` 같은 도메인 타입만 유지).
 - **Design intent** — Server Actions = API · Supabase RLS = 권한 경계. 자료실 카탈로그 (`courses`) 와 개인 학점 기록 (`user_courses`) 을 의도적으로 분리: 전자는 학부 공통 카탈로그, 후자는 사용자가 들은 임의 과목을 자유 입력 (학기 문자열도 자유 입력). 댓글 depth cap 은 UI + DB trigger 이중 가드. 폰트 (Pretendard) 는 self-host — 외부 CDN 요청 0건이 CSP 의 가드레일.
 - **Non-goals** — 모바일 앱 · 실시간 채팅 · 다국어. 한국어 + CUK 학부 학생 한정. 익명 외부 사용자 / 공개 SaaS 가 아님.
@@ -24,10 +24,10 @@
 | 1. 기반 + 인증 | ✅ | Next.js 셋업, Supabase 클라이언트, 이메일 회원가입/로그인, `/me`, profiles/boards/courses/tags 시드, error/loading/404, 이메일 확인 플로우, a11y |
 | 2. 포럼 | ✅ | posts/comments/post_likes, RLS, 마크다운 (sanitize + highlight.js), 게시판 목록/상세/작성/수정, 댓글 트리 + depth cap, 좋아요 (optimistic), 조회수 dedupe |
 | 3. 블로그 | ✅ | blog_posts / blog_series / blog_post_tags, velog 스타일 카드 + 태그 + 시리즈 생성, draft, view count |
-| 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB), 종류 필터, 과목별 질문/학습 기록 허브 |
-| 5. 관리자 + OAuth + 보안 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, `/admin/users` 콘솔, CSP/보안 헤더, sanitize 회귀 테스트 |
+| 4. 과목 자료실 | ✅ | course_materials + tsvector 풀텍스트 검색, Supabase Storage 파일 업로드 (20 MB, private bucket + signed URL), 종류 필터, 과목별 질문/학습 기록 허브 |
+| 5. 관리자 + OAuth + 보안 | ✅ | Google/Kakao OAuth, rate limit (post/comment/like), admin ban + audit_logs, `/admin/users` 콘솔 + 최근 관리자 조치, CSP/보안 헤더, sanitize 회귀 테스트 |
 | 6. 개인 학점 관리 | ✅ | `user_courses` 자유 입력 + 4.5 만점 GPA + P/NP 제외 + `is_excluded` 행 단위 제외 + 마일스톤 (B / B+ / 조기졸업 4.0 / A / A+) |
-| CI | ✅ | `.github/workflows/ci.yml` — `quality` (lint · typecheck · vitest) + `build` (`next build` with placeholder env). `actions/cache@v4` 로 `.next/cache` 재사용. Top-level `permissions: contents: read` |
+| CI | ✅ | `.github/workflows/ci.yml` — `quality` (lint · typecheck · vitest · production env guard) + `build` (`next build` with placeholder env). `actions/cache@v5` 로 `.next/cache` 재사용. Top-level `permissions: contents: read` |
 
 배포 전 디버깅 라운드 진행 중.
 
@@ -49,7 +49,6 @@ npm install
 2. **Settings → API** 에서 다음 값을 복사:
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon public` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `service_role` → `SUPABASE_SERVICE_ROLE_KEY` (관리자 작업용, 서버 전용)
 
 #### 옵션 B — Supabase Local (Docker 필요)
 
@@ -61,7 +60,7 @@ brew install supabase/tap/supabase
 supabase start
 ```
 
-`supabase start` 출력에서 `API URL`, `anon key`, `service_role key` 를 복사.
+`supabase start` 출력에서 `API URL`, `anon key` 를 복사.
 
 ### 3. 환경 변수 파일 작성
 
@@ -75,14 +74,14 @@ cp .env.local.example .env.local
 
 #### 옵션 A (Cloud) — Supabase 대시보드의 SQL Editor 에서 차례로 실행
 
-`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0019_review_fixes.sql`).
+`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0020_public_beta_blockers.sql`).
 
 #### 옵션 B (Local) — CLI 가 자동 적용
 
 `supabase start` 시 `supabase/migrations/` 의 파일이 알파벳 순서로 자동 적용됩니다. 이미 시작했다면:
 
 ```bash
-supabase db reset
+npm run db:reset
 ```
 
 ### 5. (선택) 첫 관리자 promote
@@ -106,7 +105,9 @@ http://localhost:3000 으로 접속.
 ### 7. (프로덕션 권장) 가입 이메일 도메인 제한
 
 프로덕션에서 학부 구성원 한정으로 운영하려면 서버 전용 env 를 설정합니다.
-비워두면 로컬 개발처럼 모든 이메일을 허용합니다.
+로컬/개발 환경에서는 비워둘 수 있지만, `NODE_ENV=production` 또는
+`VERCEL_ENV=production` 에서는 비어 있으면 가입/로그인이 fail-closed 되고
+`npm run start` 의 prestart guard 도 실패합니다.
 
 ```bash
 ALLOWED_SIGNUP_EMAIL_DOMAINS=example.ac.kr,*.example.ac.kr
@@ -183,28 +184,29 @@ generated 로 이관할 예정입니다.
 
 ### Phase 3 (블로그)
 
-- [ ] `/blog` 에서 최신 발행글 카드 그리드 + 태그 클라우드
-- [ ] `/blog/new` 에서 제목/본문/태그 입력 → 발행 → `/blog/{username}/{slug}` 이동
-- [ ] slug 를 비우면 제목 기반으로 자동 생성 (한글 제목은 `post-xxxx` fallback)
-- [ ] `/blog/{username}` 에서 저자 프로필 + 본인이면 draft 포함 목록
-- [ ] 태그 클릭 → `/blog/tag/{slug}` 에서 해당 태그 글만
-- [ ] 상세에서 마크다운 + 코드 하이라이트 + view 카운트 (24h dedupe)
-- [ ] 시리즈 지정 시 상세 하단에 시리즈 목차 nav
-- [ ] draft 저장 → 비로그인/타계정 방문 시 404, 본인은 DRAFT 배너와 함께 열람
+- [x] `/blog` 에서 최신 발행글 카드 그리드 + 태그 클라우드
+- [x] `/blog/new` 에서 제목/본문/태그 입력 → 발행 → `/blog/{username}/{slug}` 이동
+- [x] slug 를 비우면 제목 기반으로 자동 생성 (한글 제목은 `post-xxxx` fallback)
+- [x] `/blog/{username}` 에서 저자 프로필 + 본인이면 draft 포함 목록
+- [x] 태그 클릭 → `/blog/tag/{slug}` 에서 해당 태그 글만
+- [x] 상세에서 마크다운 + 코드 하이라이트 + view 카운트 (24h dedupe)
+- [x] 시리즈 지정 시 상세 하단에 시리즈 목차 nav
+- [x] draft 저장 → 비로그인/타계정 방문 시 404, 본인은 DRAFT 배너와 함께 열람
 
 ### Phase 4 (과목 자료실)
 
-- [ ] `/courses` 에 10 개 과목 (0003 시드) 카드 표시
-- [ ] `/courses/{slug}` 에서 종류 필터 + 검색 (tsvector `simple` dict)
-- [ ] `/courses/{slug}/new` 에서 파일 업로드 (20 MB 이내) → Supabase Storage 에 저장, 반환 path 가 hidden input 으로 서버 액션에 전달
-- [ ] 상세에서 첨부파일 공개 URL / 외부 링크 / 마크다운 본문 표시
-- [ ] 본인/admin 만 수정/삭제 노출
-- [ ] ban 된 계정은 업로드 / 자료 등록 모두 RLS 거부
+- [x] `/courses` 에 10 개 과목 (0003 시드) 카드 표시
+- [x] `/courses/{slug}` 에서 종류 필터 + 검색 (tsvector `simple` dict)
+- [x] `/courses/{slug}/new` 에서 파일 업로드 (20 MB 이내) → Supabase Storage 에 저장, 반환 path 가 hidden input 으로 서버 액션에 전달
+- [x] 상세에서 첨부파일 signed URL / 외부 링크 / 마크다운 본문 표시
+- [x] 본문 / 외부 링크 / 첨부 파일 중 하나가 없는 제목-only 자료는 validation 에서 거부
+- [x] 본인/admin 만 수정/삭제 노출
+- [x] ban 된 계정은 업로드 / 자료 등록 모두 RLS 거부
 
 ### Phase 5 (관리자 / 배포 준비)
 
 - [ ] Google/Kakao OAuth 로 로그인 가능 (Supabase Dashboard 설정 필요 — 위 7번 항목)
-- [ ] `/admin/users` 에서 사용자 검색 + ban(1d/7d/30d/permanent) + 사유 + 해제
+- [x] `/admin/users` 에서 사용자 검색 + ban(1d/7d/30d/permanent) + 사유 + 해제 + 최근 관리자 조치
 - [ ] ban 된 계정으로 글/댓글/좋아요 시도 시 '권한이 없습니다'
 - [ ] 같은 계정으로 1분 내 6번 글쓰기 → 6번째부터 rate limit 차단
 - [ ] 브라우저 DevTools 에서 CSP / X-Frame-Options / Permissions-Policy 헤더 5개 확인
@@ -213,11 +215,11 @@ generated 로 이관할 예정입니다.
 
 ### Phase 6 (개인 학점 관리)
 
-- [ ] `/gpa` 에서 학기별 수강 목록 + 누적 GPA / 학기별 GPA / 마일스톤 진행도 표시
-- [ ] `/gpa/new` 에서 과목명 · 학점 · 성적 (A+~F / P / NP) · 학기 자유 입력 → 목록에 추가
-- [ ] P / NP 행은 평점 평균 계산에서 제외, 학점은 별도 누적
-- [ ] `is_excluded` 토글 시 해당 행이 GPA 계산에서 빠지지만 목록에는 남음
-- [ ] 본인 외 계정에서 `/gpa` 접근 / 타인 row 수정 시 RLS 거부
+- [x] `/gpa` 에서 학기별 수강 목록 + 누적 GPA / 학기별 GPA / 마일스톤 진행도 표시
+- [x] `/gpa/new` 에서 과목명 · 학점 · 성적 (A+~F / P / NP) · 학기 자유 입력 → 목록에 추가
+- [x] P / NP 행은 평점 평균 계산에서 제외, 학점은 별도 누적
+- [x] `is_excluded` 토글 시 해당 행이 GPA 계산에서 빠지지만 목록에는 남음
+- [x] 본인 외 계정에서 `/gpa` 접근 / 타인 row 수정 시 RLS 거부
 
 ---
 
@@ -229,7 +231,8 @@ cuk-sw-community/
 ├── next.config.ts                 # CSP + 보안 헤더 5종
 ├── .github/workflows/ci.yml       # lint + typecheck + vitest
 ├── supabase/
-│   └── migrations/                # 0001 ~ 0017
+│   ├── config.toml                 # Supabase local/dev config
+│   └── migrations/                 # 0001 ~ 0020
 └── src/
     ├── app/
     │   ├── layout.tsx             # Pretendard self-host + 메타데이터
@@ -259,7 +262,7 @@ cuk-sw-community/
     │   ├── admin/user-row.tsx
     │   └── ui/pagination.tsx
     ├── lib/
-    │   ├── supabase/              # env / server / browser / proxy / admin 클라이언트
+    │   ├── supabase/              # env / server / browser / proxy
     │   ├── auth/                  # getCurrentUser, requireUser/Profile/Admin
     │   ├── db/                    # posts, comments, blog, courses, admin (PostgREST embed)
     │   ├── validation/            # zod (auth, post, comment, blog, course-material, user-course)
@@ -309,4 +312,6 @@ npm run lint       # ESLint
 npm run typecheck  # tsc --noEmit
 npm test           # vitest (watch)
 npm run test:run   # vitest run (CI 동일)
+npm run check:production-env
+npm run db:reset   # Supabase CLI local migration replay
 ```

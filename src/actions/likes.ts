@@ -34,13 +34,17 @@ export async function toggleLikeAction(formData: FormData) {
       throw new Error(mapSupabaseError(insertError));
     }
     // Already liked → toggle off.
-    const { error: deleteError } = await supabase
+    const { data: deleted, error: deleteError } = await supabase
       .from("post_likes")
       .delete()
       .eq("post_id", postId)
-      .eq("user_id", profile.id);
+      .eq("user_id", profile.id)
+      .select("post_id")
+      .maybeSingle();
     if (deleteError) throw new Error(mapSupabaseError(deleteError));
+    if (!deleted) throw new Error("좋아요 상태를 변경할 수 없습니다.");
   }
 
+  revalidatePath(`/board/${boardSlugRaw}`);
   revalidatePath(`/board/${boardSlugRaw}/${postId}`);
 }

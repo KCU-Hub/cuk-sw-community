@@ -58,7 +58,7 @@ export async function updateUserCourseAction(formData: FormData) {
   if (!parsed.success) throw new Error(firstError(parsed.error));
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("user_courses")
     .update({
       semester: parsed.data.semester,
@@ -69,8 +69,11 @@ export async function updateUserCourseAction(formData: FormData) {
       is_excluded: parsed.data.is_excluded,
       memo: parsed.data.memo || null,
     })
-    .eq("id", idResult.data);
+    .eq("id", idResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(mapSupabaseError(error));
+  if (!updated) throw new Error("수정할 수 없는 수강 기록입니다.");
 
   revalidatePath("/gpa");
   redirect("/gpa");
@@ -84,11 +87,14 @@ export async function deleteUserCourseAction(formData: FormData) {
   if (!idResult.success) throw new Error(firstError(idResult.error));
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("user_courses")
     .delete()
-    .eq("id", idResult.data);
+    .eq("id", idResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(mapSupabaseError(error));
+  if (!deleted) throw new Error("삭제할 수 없는 수강 기록입니다.");
 
   revalidatePath("/gpa");
   redirect("/gpa");
@@ -104,11 +110,14 @@ export async function toggleUserCourseExcludedAction(formData: FormData) {
   const nextExcluded = formBool(formData, "next_excluded", false);
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("user_courses")
     .update({ is_excluded: nextExcluded })
-    .eq("id", idResult.data);
+    .eq("id", idResult.data)
+    .select("id")
+    .maybeSingle();
   if (error) throw new Error(mapSupabaseError(error));
+  if (!updated) throw new Error("변경할 수 없는 수강 기록입니다.");
 
   revalidatePath("/gpa");
 }

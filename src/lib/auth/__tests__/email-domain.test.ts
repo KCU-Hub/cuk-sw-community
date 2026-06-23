@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import { isSignupEmailDomainAllowed } from "@/lib/auth/email-domain";
 
 describe("isSignupEmailDomainAllowed", () => {
-  it("allows every email when no allowlist is configured", () => {
-    expect(isSignupEmailDomainAllowed("student@example.com", [])).toBe(true);
+  it("allows every email in local/dev mode when no allowlist is configured", () => {
+    expect(isSignupEmailDomainAllowed("student@example.com", [], false)).toBe(
+      true,
+    );
+  });
+
+  it("fails closed in production mode when no allowlist is configured", () => {
+    expect(isSignupEmailDomainAllowed("student@example.com", [], true)).toBe(
+      false,
+    );
   });
 
   it("allows exact configured domains case-insensitively", () => {

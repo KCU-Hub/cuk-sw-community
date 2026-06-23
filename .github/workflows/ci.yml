@@ -32,6 +32,11 @@ jobs:
 
       - name: Unit tests
         run: npm run test:run
+      - name: Production env guard smoke
+        env:
+          VERCEL_ENV: production
+          ALLOWED_SIGNUP_EMAIL_DOMAINS: example.ac.kr
+        run: npm run check:production-env
 
   build:
     runs-on: ubuntu-latest

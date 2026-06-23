@@ -43,6 +43,7 @@ export async function createCommentAction(formData: FormData) {
 
   if (error) throw new Error(mapSupabaseError(error));
 
+  revalidatePath(`/board/${boardSlugRaw}`);
   revalidatePath(`/board/${boardSlugRaw}/${parsed.data.post_id}`);
 }
 
@@ -59,12 +60,16 @@ export async function deleteCommentAction(formData: FormData) {
 
   const supabase = await createClient();
   // Soft delete preserves the tree structure for nested replies.
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("comments")
     .update({ is_deleted: true, content: "[삭제된 댓글]" })
-    .eq("id", commentId);
+    .eq("id", commentId)
+    .select("id")
+    .maybeSingle();
 
   if (error) throw new Error(mapSupabaseError(error));
+  if (!deleted) throw new Error("삭제할 수 없는 댓글입니다.");
 
+  revalidatePath(`/board/${boardSlugRaw}`);
   revalidatePath(`/board/${boardSlugRaw}/${postId}`);
 }

@@ -1,10 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
+type PublicProfile = Pick<Profile, "id" | "username" | "display_name" | "avatar_url">;
+
 export interface AdminUserListItem extends Profile {
   post_count: number;
   comment_count: number;
 }
+
+type AdminUserRpcRow = Profile & {
+  post_count: number;
+  comment_count: number;
+  total_count: number;
+};
 
 // Admin dashboard: list all profiles + rough activity counts.
 //
@@ -21,47 +29,23 @@ export async function listUsersForAdmin({
   search?: string;
 } = {}): Promise<{ users: AdminUserListItem[]; total: number }> {
   const supabase = await createClient();
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  let query = supabase
-    .from("profiles")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (search.trim()) {
-    const pattern = `%${search.trim()}%`;
-    query = query.or(`username.ilike.${pattern},display_name.ilike.${pattern}`);
-  }
-
-  const { data, error, count } = await query;
+  const { data, error } = await supabase.rpc("admin_list_users", {
+    p_search: search.trim(),
+    p_limit: pageSize,
+    p_offset: (page - 1) * pageSize,
+  });
   if (error) throw error;
 
-  // Counts are cheap on 학부 규모 (2026: 수백~수천 user). If this ever
-  // grows we'll materialize the counts via trigger.
-  const profiles = (data ?? []) as Profile[];
-  const withCounts: AdminUserListItem[] = await Promise.all(
-    profiles.map(async (p) => {
-      const [{ count: postCount }, { count: commentCount }] = await Promise.all([
-        supabase
-          .from("posts")
-          .select("id", { count: "exact", head: true })
-          .eq("author_id", p.id),
-        supabase
-          .from("comments")
-          .select("id", { count: "exact", head: true })
-          .eq("author_id", p.id),
-      ]);
-      return {
-        ...p,
-        post_count: postCount ?? 0,
-        comment_count: commentCount ?? 0,
-      };
-    }),
+  const rows = (data ?? []) as AdminUserRpcRow[];
+  const total = rows[0]?.total_count ?? 0;
+  const withCounts = rows.map(
+    ({ total_count: _totalCount, ...row }): AdminUserListItem => {
+      void _totalCount;
+      return row;
+    },
   );
 
-  return { users: withCounts, total: count ?? 0 };
+  return { users: withCounts, total };
 }
 
 export interface AuditLogEntry {
@@ -72,6 +56,11 @@ export interface AuditLogEntry {
   reason: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
+}
+
+export interface AuditLogListItem extends AuditLogEntry {
+  admin: PublicProfile | null;
+  target: PublicProfile | null;
 }
 
 export async function listAuditLogsForUser(
@@ -87,4 +76,23 @@ export async function listAuditLogsForUser(
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as AuditLogEntry[];
+}
+
+export async function listRecentAuditLogs({
+  limit = 12,
+}: { limit?: number } = {}): Promise<AuditLogListItem[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select(
+      `
+      *,
+      admin:profiles!audit_logs_admin_id_fkey(id, username, display_name, avatar_url),
+      target:profiles!audit_logs_target_user_id_fkey(id, username, display_name, avatar_url)
+    `,
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as AuditLogListItem[];
 }
