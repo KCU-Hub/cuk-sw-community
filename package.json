@@ -11,10 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "db:reset": "supabase db reset",
+    "db:start": "supabase start --exclude vector --ignore-health-check",
+    "db:reset": "supabase db reset --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --no-seed",
     "check:production-env": "node scripts/check-production-env.mjs",
-    "types:gen:local": "supabase gen types typescript --local --schema public > src/lib/types.generated.ts",
-    "types:gen:remote": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > src/lib/types.generated.ts"
+    "types:gen:local": "node scripts/generate-supabase-types.mjs --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --schema public",
+    "types:gen:remote": "node scripts/generate-supabase-types.mjs --project-id \"$SUPABASE_PROJECT_ID\" --schema public"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
@@ -41,6 +42,7 @@
     "eslint-config-next": "^16.2.9",
     "rehype-parse": "^9.0.1",
     "rehype-stringify": "^10.0.1",
+    "supabase": "^2.107.0",
     "tailwindcss": "^4.3.1",
     "typescript": "^5",
     "unified": "^11.0.5",

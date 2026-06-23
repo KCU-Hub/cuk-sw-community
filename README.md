@@ -9,8 +9,8 @@
 
 ## 한눈에 보기
 
-- **Currently implemented** — Phase 1~6 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자 / 과목 중심 커뮤니티 루프) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0020, 테스트 115건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA / 이메일 도메인 게이트 / 자료실 validation / public-beta RLS migration guard), GitHub Actions CI (lint + typecheck + vitest + production env guard + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
-- **Planned** — 프로덕션 배포. 베이스 row 타입을 `src/lib/types.generated.ts` 로 단일화 (`src/lib/types.ts` 는 `PostWithAuthor` / `CommentNode` 같은 도메인 타입만 유지).
+- **Currently implemented** — Phase 1~6 (인증 / 포럼 / 블로그 / 과목 자료실 / 관리자 / 과목 중심 커뮤니티 루프) + 개인 학점 관리 (GPA 트래커). 마이그레이션 0001~0021, 테스트 120건 (sanitize 회귀 / rate-limit / 댓글 트리 / GPA / 이메일 도메인 게이트 / 자료실 validation / public-beta RLS·grant migration guard), GitHub Actions CI (lint + typecheck + vitest + production env guard + `next build` 검증, `.next/cache` warm). Node 22 LTS 핀 (`.nvmrc`), TS target ES2022, Dependabot (npm + actions, patch+minor grouped), CODEOWNERS, SECURITY.md.
+- **Planned** — 프로덕션 배포. 베이스 row 타입은 `src/lib/types.generated.ts` 로 생성해 커밋하며, `src/lib/types.ts` 는 `PostWithAuthor` / `CommentNode` 같은 도메인 타입 중심으로 축소 예정.
 - **Design intent** — Server Actions = API · Supabase RLS = 권한 경계. 자료실 카탈로그 (`courses`) 와 개인 학점 기록 (`user_courses`) 을 의도적으로 분리: 전자는 학부 공통 카탈로그, 후자는 사용자가 들은 임의 과목을 자유 입력 (학기 문자열도 자유 입력). 댓글 depth cap 은 UI + DB trigger 이중 가드. 폰트 (Pretendard) 는 self-host — 외부 CDN 요청 0건이 CSP 의 가드레일.
 - **Non-goals** — 모바일 앱 · 실시간 채팅 · 다국어. 한국어 + CUK 학부 학생 한정. 익명 외부 사용자 / 공개 SaaS 가 아님.
 - **Redacted** — 배포 도메인, 학교 인증 정책 (학생 검증 방식 등 배포 전 확정 사항).
@@ -74,13 +74,15 @@ cp .env.local.example .env.local
 
 #### 옵션 A (Cloud) — Supabase 대시보드의 SQL Editor 에서 차례로 실행
 
-`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0020_public_beta_blockers.sql`).
+`supabase/migrations/` 안의 파일을 **숫자 순서대로** 실행 (`0001_init.sql` → … → `0021_public_table_grants.sql`).
 
 #### 옵션 B (Local) — CLI 가 자동 적용
 
-`supabase start` 시 `supabase/migrations/` 의 파일이 알파벳 순서로 자동 적용됩니다. 이미 시작했다면:
+로컬 스택은 repo-local Supabase CLI 로 실행합니다. 이 프로젝트는 vector 서비스를
+쓰지 않으므로 로컬 시작 스크립트에서 제외합니다.
 
 ```bash
+npm run db:start
 npm run db:reset
 ```
 
@@ -136,7 +138,8 @@ ALLOWED_SIGNUP_EMAIL_DOMAINS=example.ac.kr,*.example.ac.kr
 
 마이그레이션을 추가/수정한 뒤엔 Supabase 스키마와 TypeScript 타입의 드리프트를
 막기 위해 타입을 재생성해주세요. 결과물 (`src/lib/types.generated.ts`) 은 커밋
-대상입니다.
+대상입니다. 로컬 타입 생성은 `npm run db:start` 와 `npm run db:reset` 이후에
+실행합니다.
 
 ```bash
 # 로컬 Supabase 를 쓸 때
@@ -146,7 +149,7 @@ npm run types:gen:local
 SUPABASE_PROJECT_ID=xxxxxxxx npm run types:gen:remote
 ```
 
-현재 `src/lib/types.ts` 의 수동 타입과 병행 운용합니다. 앞으로 도메인 타입
+현재 `src/lib/types.ts` 의 수동 도메인 타입과 병행 운용합니다. 앞으로 도메인 타입
 (`PostWithAuthor`, `CommentNode`) 만 `types.ts` 에 남기고 베이스 row 타입은
 generated 로 이관할 예정입니다.
 
@@ -232,7 +235,7 @@ cuk-sw-community/
 ├── .github/workflows/ci.yml       # lint + typecheck + vitest
 ├── supabase/
 │   ├── config.toml                 # Supabase local/dev config
-│   └── migrations/                 # 0001 ~ 0020
+│   └── migrations/                 # 0001 ~ 0021
 └── src/
     ├── app/
     │   ├── layout.tsx             # Pretendard self-host + 메타데이터
