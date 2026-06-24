@@ -51,7 +51,7 @@ jobs:
           cache: npm
 
       - name: Cache .next
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .next/cache
           # Test files never reach the build output — exclude so test edits
