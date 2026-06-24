@@ -17,7 +17,7 @@ export default async function LoginPage({
     <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center px-4">
       <h1 className="text-2xl font-bold tracking-tight">로그인</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          CUK SW 커뮤니티에 오신 것을 환영합니다.
+          Heznpc Archive를 관리하기 위한 owner 접근입니다.
         </p>
 
         {error ? (
@@ -73,12 +73,12 @@ export default async function LoginPage({
         <OAuthButtons intent="login" />
 
       <p className="mt-6 text-center text-sm text-zinc-500">
-        아직 계정이 없으신가요?{" "}
+        초기 owner 계정이 필요하신가요?{" "}
         <Link
           href="/signup"
           className="font-medium text-brand-700 hover:text-brand-800"
         >
-          회원가입
+          owner 계정 만들기
         </Link>
       </p>
     </main>

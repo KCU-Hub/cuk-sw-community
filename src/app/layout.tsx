@@ -15,9 +15,9 @@ const pretendard = localFont({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-const SITE_NAME = "CUK SW Community";
+const SITE_NAME = "Heznpc Archive";
 const SITE_DESCRIPTION =
-  "고려사이버대학교 소프트웨어학부 학생들을 위한 커뮤니티, 블로그, 과목 자료실";
+  "Heznpc의 학습 기록, 프로젝트 회고, 문제 풀이 로그를 정리하는 개인 아카이브";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

@@ -203,12 +203,12 @@ describe("projectForTarget", () => {
 });
 
 describe("GPA_MILESTONES", () => {
-  it("includes early-graduation hint at 4.0", () => {
+  it("includes a personal 4.0 target hint", () => {
     const m = GPA_MILESTONES.find(
-      (x) => x.threshold === 4.0 && x.label === "조기졸업",
+      (x) => x.threshold === 4.0 && x.label === "4.0 목표",
     );
     expect(m).toBeDefined();
-    expect(m?.hint).toMatch(/조기졸업/);
+    expect(m?.hint).toMatch(/개인 목표/);
   });
   it("covers 3.0 / 3.5 / 4.0 / 4.5", () => {
     const thresholds = GPA_MILESTONES.map((m) => m.threshold).sort();

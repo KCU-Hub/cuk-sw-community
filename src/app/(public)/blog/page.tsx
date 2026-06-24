@@ -4,7 +4,7 @@ import { getCurrentProfile } from "@/lib/auth/get-user";
 import { BlogCard } from "@/components/blog/blog-card";
 import { Pagination } from "@/components/ui/pagination";
 
-export const metadata = { title: "블로그" };
+export const metadata = { title: "Records" };
 
 const PAGE_SIZE = 12;
 
@@ -28,9 +28,9 @@ export default async function BlogIndexPage({
     <main className="mx-auto max-w-5xl px-4 py-12">
       <div className="flex items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">블로그</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Records</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            학부 구성원들의 긴 글을 모아 둡니다.
+            공개 학습 노트, 프로젝트 회고, 생각의 초안을 모아 둡니다.
           </p>
         </div>
         {profile && (

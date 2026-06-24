@@ -776,6 +776,7 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      is_archive_writer: { Args: never; Returns: boolean }
       is_user_banned: { Args: never; Returns: boolean }
       prune_rate_limit_events: { Args: never; Returns: undefined }
       set_blog_post_courses: {

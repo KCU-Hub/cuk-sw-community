@@ -2,7 +2,7 @@ import Link from "next/link";
 import { listBoards } from "@/lib/db/posts";
 
 export const metadata = {
-  title: "게시판",
+  title: "Logbook",
 };
 
 export default async function BoardListPage() {
@@ -10,9 +10,9 @@ export default async function BoardListPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="text-2xl font-bold tracking-tight">게시판</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Logbook</h1>
       <p className="mt-2 text-sm text-zinc-500">
-        관심 있는 주제별로 글을 나눠 올릴 수 있습니다.
+        짧은 기록, 문제 풀이, 운영 노트를 나눠 보관합니다.
       </p>
 
       <ul className="mt-8 space-y-3">

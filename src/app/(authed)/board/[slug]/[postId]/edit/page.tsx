@@ -65,7 +65,7 @@ export default async function EditPostPage({
         <CourseCheckboxList
           courses={courses}
           selectedSlugs={post.courses.map((course) => course.slug)}
-          helpText="최대 3개까지 연결할 수 있습니다. 질문게시판 글은 과목과 연결하면 과목 페이지에도 함께 표시됩니다."
+          helpText="최대 3개까지 연결할 수 있습니다. Problem Log 글은 인덱스와 연결하면 해당 주제 페이지에도 함께 표시됩니다."
         />
 
         <div>

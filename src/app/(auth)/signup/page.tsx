@@ -3,7 +3,7 @@ import { signUpAction } from "@/actions/auth";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export const metadata = {
-  title: "회원가입",
+  title: "Owner 계정 만들기",
 };
 
 export default async function SignupPage({
@@ -15,10 +15,10 @@ export default async function SignupPage({
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-md flex-col justify-center px-4">
-      <h1 className="text-2xl font-bold tracking-tight">회원가입</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Owner 계정 만들기</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          이메일과 비밀번호로 가입하세요. 닉네임은 가입 후 마이페이지에서
-          수정할 수 있습니다.
+          Heznpc Archive는 개인 기록용입니다. 프로덕션에서는 설정된 owner
+          이메일만 가입과 로그인을 통과합니다.
         </p>
 
         {error ? (
@@ -70,7 +70,7 @@ export default async function SignupPage({
             type="submit"
             className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
-            회원가입
+            owner 계정 만들기
           </button>
         </form>
 

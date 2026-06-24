@@ -6,10 +6,10 @@ import { MobileNav } from "@/components/layout/mobile-nav";
 type NavItem = { href: string; label: string; authedOnly?: boolean };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/board", label: "게시판" },
-  { href: "/blog", label: "블로그" },
-  { href: "/courses", label: "자료실" },
-  { href: "/gpa", label: "학점", authedOnly: true },
+  { href: "/blog", label: "Records" },
+  { href: "/courses", label: "Index" },
+  { href: "/board", label: "Logbook" },
+  { href: "/gpa", label: "Private", authedOnly: true },
 ];
 
 export async function SiteHeader() {
@@ -23,8 +23,8 @@ export async function SiteHeader() {
           href="/"
           className="text-base font-semibold tracking-tight"
         >
-          <span className="text-brand-600">CUK</span>{" "}
-          <span className="text-zinc-900">SW</span>
+          <span className="text-brand-600">Heznpc</span>{" "}
+          <span className="text-zinc-900">Archive</span>
         </Link>
 
         <nav className="hidden items-center gap-1 sm:flex">

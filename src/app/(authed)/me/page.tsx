@@ -100,17 +100,17 @@ export default async function MePage() {
           <div>
             <dt className="text-sm font-medium text-zinc-500">프로필 공개</dt>
             <dd className="mt-1 text-sm text-zinc-900">
-              커뮤니티 작성자 정보로 공개
+              공개 기록의 작성자 정보로 표시
             </dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-zinc-500">블로그</dt>
+            <dt className="text-sm font-medium text-zinc-500">Records</dt>
             <dd className="mt-1 text-sm text-zinc-900">
               <Link
                 href={`/blog/${profile.username}`}
                 className="font-medium text-brand-700 transition hover:text-brand-900"
               >
-                @{profile.username} 블로그 보기
+                @{profile.username} 기록 보기
               </Link>
             </dd>
           </div>

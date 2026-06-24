@@ -7,7 +7,7 @@ const migration = readFileSync(
   "utf8",
 );
 
-describe("0020 public beta hardening migration", () => {
+describe("0020 public access hardening migration", () => {
   it("removes direct access to sensitive profile columns", () => {
     expect(migration).toContain("revoke select on public.profiles");
     expect(migration).toContain("grant select (");

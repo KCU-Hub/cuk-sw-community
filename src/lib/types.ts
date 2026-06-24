@@ -126,7 +126,7 @@ export type BlogPostWithAuthor = BlogPost & {
 };
 
 // =====================================================================
-// Phase 4 — 과목 자료실
+// Knowledge Index materials
 // =====================================================================
 
 export type Course = {
