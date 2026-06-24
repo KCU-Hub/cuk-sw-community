@@ -131,7 +131,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  if (!isBoardSlug(slug)) return { title: "게시판" };
+  if (!isBoardSlug(slug)) return { title: "Logbook" };
   const board = await getBoardBySlug(slug);
-  return { title: board?.name ?? "게시판" };
+  return { title: board?.name ?? "Logbook" };
 }

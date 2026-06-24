@@ -1,6 +1,6 @@
 import type { Grade, UserCourse } from "@/lib/types";
 
-// 한국 사이버대학 표준 4.5 만점. P/NP 는 평점 계산에서 제외 → null.
+// 4.5 만점 GPA 기준. P/NP 는 평점 계산에서 제외 → null.
 export const GRADE_POINTS: Record<Grade, number | null> = {
   "A+": 4.5,
   "A": 4.0,
@@ -17,8 +17,8 @@ export const GRADE_POINTS: Record<Grade, number | null> = {
 
 export const GRADE_MAX = 4.5;
 
-// 표시·계산용 마일스톤. 조기졸업(4.0) 도 한 항목으로 포함되어 있고,
-// 일반 GPA 평균 기준선들 (B/B+/A/A+) 과 같은 자리에서 노출됨.
+// 표시·계산용 마일스톤. 일반 GPA 평균 기준선들 (B/B+/A/A+) 과
+// 개인 목표선(4.0)을 같은 자리에서 노출함.
 export interface GpaMilestone {
   readonly label: string;
   readonly threshold: number;
@@ -28,7 +28,7 @@ export interface GpaMilestone {
 export const GPA_MILESTONES: readonly GpaMilestone[] = [
   { label: "B 평균",   threshold: 3.0 },
   { label: "B+ 평균",  threshold: 3.5 },
-  { label: "조기졸업", threshold: 4.0, hint: "고려사이버대 조기졸업 자격 기준 (학점 평균 4.0)" },
+  { label: "4.0 목표", threshold: 4.0, hint: "개인 목표 GPA 기준선" },
   { label: "A 평균",   threshold: 4.0 },
   { label: "A+ 평균",  threshold: 4.5 },
 ];

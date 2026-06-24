@@ -31,7 +31,7 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const course = await getCourseBySlug(slug);
-  return { title: course?.name ?? "과목" };
+  return { title: course?.name ?? "Index" };
 }
 
 export default async function CoursePage({
@@ -82,7 +82,7 @@ export default async function CoursePage({
         <div>
           <div className="text-sm text-zinc-500">
             <Link href="/courses" className="hover:text-brand-700">
-              과목 자료실
+              Knowledge Index
             </Link>
           </div>
           <h1 className="mt-2 text-2xl font-bold tracking-tight">
@@ -109,10 +109,10 @@ export default async function CoursePage({
 
       <section aria-labelledby="course-stats-title" className="mt-8">
         <h2 id="course-stats-title" className="sr-only">
-          과목 자료 현황
+          인덱스 자료 현황
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatTile label="전체 자료" value={materialStats.total} />
+          <StatTile label="전체 항목" value={materialStats.total} />
           {MATERIAL_TYPES.map((materialType) => (
             <StatTile
               key={materialType}
@@ -188,18 +188,18 @@ export default async function CoursePage({
             <div className="mt-3 space-y-2">
               <HubAction
                 href={canContribute ? `/board/qna/new?course=${slug}` : "/login"}
-                title="질문하기"
-                description={`${course.name}에서 막힌 부분을 질문게시판에 남깁니다.`}
+                title="문제 로그 남기기"
+                description={`${course.name}에서 막힌 부분과 해결 과정을 로그로 남깁니다.`}
               />
               <HubAction
                 href={canContribute ? `/blog/new?course=${slug}` : "/login"}
                 title="기록 쓰기"
-                description="수강 중 배운 내용과 시행착오를 블로그 기록으로 남깁니다."
+                description="배운 내용과 시행착오를 공개 기록으로 남깁니다."
               />
               <HubAction
                 href={canContribute ? `/courses/${slug}/new` : "/login"}
-                title="자료 올리기"
-                description="강의, 과제, 시험, 링크 자료를 이 과목에 모읍니다."
+                title="자료 추가"
+                description="노트, 링크, 파일 자료를 이 인덱스에 모읍니다."
               />
               <HubAction
                 href={
@@ -211,20 +211,20 @@ export default async function CoursePage({
                       }`
                     : "/login"
                 }
-                title="학점에 추가"
-                description="개인 GPA 기록에 수강 과목을 추가합니다."
+                title="Private에 추가"
+                description="개인 학습 행에 이 주제를 추가합니다."
               />
             </div>
           </section>
 
           <section className="rounded-md border border-zinc-100 bg-white p-4">
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-semibold text-zinc-900">관련 질문</h2>
+              <h2 className="text-sm font-semibold text-zinc-900">관련 문제 로그</h2>
               <Link
                 href="/board/qna"
                 className="text-xs font-medium text-brand-700 hover:text-brand-800"
               >
-                질문게시판
+                Problem Log
               </Link>
             </div>
             <RelatedPosts posts={relatedPosts} />
@@ -232,12 +232,12 @@ export default async function CoursePage({
 
           <section className="rounded-md border border-zinc-100 bg-white p-4">
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-semibold text-zinc-900">학습 기록</h2>
+              <h2 className="text-sm font-semibold text-zinc-900">관련 기록</h2>
               <Link
                 href="/blog"
                 className="text-xs font-medium text-brand-700 hover:text-brand-800"
               >
-                블로그
+                Records
               </Link>
             </div>
             <RelatedBlogPosts posts={relatedBlogPosts} />

@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { listCourses } from "@/lib/db/courses";
 
-export const metadata = { title: "과목 자료실" };
+export const metadata = { title: "Knowledge Index" };
 
 export default async function CoursesIndexPage() {
   const courses = await listCourses();
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="text-2xl font-bold tracking-tight">과목 자료실</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Knowledge Index</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        학부 커리큘럼 기준. 과목별 강의/과제/시험 자료를 공유합니다.
+        주제별 자료, 링크, 노트, 참고 문헌을 다시 찾기 쉽게 묶습니다.
       </p>
 
       <ul className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">

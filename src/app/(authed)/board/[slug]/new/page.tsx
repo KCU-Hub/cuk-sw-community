@@ -60,7 +60,7 @@ export default async function NewPostPage({
         <CourseCheckboxList
           courses={courses}
           selectedSlugs={courseParam ? [courseParam] : []}
-          helpText="최대 3개까지 연결할 수 있습니다. 질문게시판 글은 과목과 연결하면 과목 페이지에도 함께 표시됩니다."
+          helpText="최대 3개까지 연결할 수 있습니다. Problem Log 글은 인덱스와 연결하면 해당 주제 페이지에도 함께 표시됩니다."
         />
 
         <div>
@@ -102,5 +102,5 @@ export async function generateMetadata({
   const { slug } = await params;
   if (!isBoardSlug(slug)) return { title: "글쓰기" };
   const board = await getBoardBySlug(slug);
-  return { title: `${board?.name ?? "게시판"} 글쓰기` };
+  return { title: `${board?.name ?? "Logbook"} 글쓰기` };
 }

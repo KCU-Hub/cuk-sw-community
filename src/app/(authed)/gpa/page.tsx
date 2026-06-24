@@ -10,7 +10,7 @@ import { GpaSummaryCard } from "@/components/gpa/gpa-summary-card";
 import { toggleUserCourseExcludedAction } from "@/actions/user-course";
 import { formatDateKo } from "@/lib/format";
 
-export const metadata = { title: "학점 계산기" };
+export const metadata = { title: "Private Learning Metrics" };
 
 export default async function GpaPage() {
   const profile = await requireProfile();
@@ -25,9 +25,11 @@ export default async function GpaPage() {
     <main className="mx-auto max-w-4xl px-4 py-12">
       <div className="flex items-baseline justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">학점 계산기</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Private Learning Metrics
+          </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            본인만 열람할 수 있는 개인 학점 기록. 한국 사이버대학 표준 4.5 만점.
+            owner만 열람하는 개인 학습 행과 4.5 기준 GPA 시뮬레이션입니다.
           </p>
         </div>
         <Link

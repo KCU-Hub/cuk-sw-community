@@ -7,8 +7,8 @@ export interface RateLimit {
   perHour: number;
 }
 
-// 학부 규모 (2026) 기준 — 정상 사용은 이 한도 안쪽, bot spam 만 차단.
-// 필요 시 admin 이 DB 의 값을 조정할 수 있게 config 테이블로 이관 예정.
+// Personal archive 기준 — 정상 owner 작업은 이 한도 안쪽, 자동화 실수와
+// bot spam 만 차단. 필요 시 admin 이 DB config 로 이관할 수 있음.
 export const RATE_LIMITS: Record<RateAction, RateLimit> = {
   post_create:    { perMinute: 5,  perHour: 30  },
   comment_create: { perMinute: 10, perHour: 100 },
@@ -51,8 +51,8 @@ export function decideRateLimit(
 //   fetch events → decide → insert is a TOCTOU window. N parallel requests
 //   from the same user can all observe count < limit before any of them
 //   inserts, letting up to N-1 extra events through. Acceptable because the
-//   limits exist to slow accidental floods and bot-level spam at student-
-//   community scale; a determined adversary bypassing by O(limit) is not
+//   limits exist to slow accidental floods and bot-level spam at personal
+//   archive scale; a determined adversary bypassing by O(limit) is not
 //   in scope. Do NOT assume strict ordering from this function — if you
 //   need atomicity (e.g. for billing), move the check into a DB function
 //   that holds a row lock or uses INSERT ... WHERE.
@@ -67,7 +67,7 @@ export async function enforceRateLimit(
 
   // 단일 fetch 로 최근 1h 이벤트를 가져오고 메모리에서 분류 — 두 번의
   // count() 쿼리보다 DB round-trip 이 하나 적고, 분/시간 임계치 대비
-  // 학부 규모에선 자릿수가 수십 건 이내라 payload 도 가벼움.
+  // archive 규모에선 자릿수가 수십 건 이내라 payload 도 가벼움.
   const { data, error } = await supabase
     .from("rate_limit_events")
     .select("created_at")

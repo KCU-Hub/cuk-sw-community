@@ -70,22 +70,22 @@ function FolderIcon({ className }: IconProps) {
 
 const FEATURES = [
   {
-    title: "커뮤니티",
-    description: "자유게시판, 질문게시판, 공지사항.",
-    href: "/board",
-    Icon: ChatIcon,
-  },
-  {
-    title: "블로그",
-    description: "마크다운으로 정리하는 학습 기록.",
+    title: "Records",
+    description: "프로젝트 회고, 학습 노트, 생각의 초안.",
     href: "/blog",
     Icon: PenIcon,
   },
   {
-    title: "과목 자료실",
-    description: "과목별 노트, 과제 팁, 시험 팁 모음.",
+    title: "Knowledge Index",
+    description: "주제별 자료, 링크, 참고 문헌을 모으는 색인.",
     href: "/courses",
     Icon: FolderIcon,
+  },
+  {
+    title: "Problem Log",
+    description: "막혔던 문제와 해결 과정을 다시 찾을 수 있게 남기는 로그.",
+    href: "/board",
+    Icon: ChatIcon,
   },
 ] as const;
 
@@ -127,27 +127,26 @@ function VisitorHome() {
     <main className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-5xl flex-col justify-center px-4 py-16">
       <section className="text-center">
         <p className="text-sm font-medium text-brand-600">
-          고려사이버대학교 · 소프트웨어학부
+          Personal learning archive
         </p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
-          함께 배우는{" "}
-          <span className="text-brand-600">CUK SW Community</span>
+          <span className="text-brand-600">Heznpc Archive</span>
         </h1>
         <p className="mt-6 text-lg text-zinc-600 sm:text-xl">
-          학부 학생들을 위한 커뮤니티, 블로그, 과목별 자료실. 한 곳에서.
+          배운 것, 만든 것, 막혔다가 푼 것을 오래 남기는 개인 지식 창고입니다.
         </p>
         <div className="mt-10 flex items-center justify-center gap-3">
           <Link
-            href="/board"
+            href="/blog"
             className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
           >
-            게시판 둘러보기
+            기록 읽기
           </Link>
           <Link
-            href="/login"
+            href="/courses"
             className="rounded-full border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
           >
-            시작하기
+            인덱스 보기
           </Link>
         </div>
       </section>
@@ -195,14 +194,14 @@ function AuthedHome({
       <section className="flex flex-col gap-6 border-b border-zinc-100 pb-8 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-medium text-brand-700">
-            {displayName}님의 학습 공간
+            {displayName}님의 archive desk
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">
-            과목에서 질문하고, 기록하고, 다시 이어보세요.
+            기록하고, 분류하고, 다시 찾을 수 있게 정리하세요.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600">
-            CUK SW Community는 과목별 자료, 질문, 블로그 기록, 개인 학점
-            관리를 하나의 흐름으로 묶습니다.
+            Heznpc Archive는 공개 기록, 자료 색인, 문제 풀이 로그, 개인 학습
+            지표를 한 곳에서 이어 쓰는 owner 중심 작업대입니다.
           </p>
         </div>
 
@@ -211,7 +210,7 @@ function AuthedHome({
             href="/board/qna/new"
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
-            질문하기
+            문제 로그 남기기
           </Link>
           <Link
             href="/blog/new"
@@ -224,17 +223,17 @@ function AuthedHome({
 
       <section className="mt-8 grid gap-4 sm:grid-cols-3">
         <DashboardMetric
-          label="내 GPA"
+          label="Private GPA"
           value={gpa === null ? "—" : gpa.toFixed(2)}
           href="/gpa"
         />
         <DashboardMetric
-          label="내 수강 기록"
+          label="학습 행"
           value={`${courseCount}`}
           href="/gpa"
         />
         <DashboardMetric
-          label="미해결 질문"
+          label="열린 문제 로그"
           value={`${openQuestionCount}`}
           href="/board/qna?status=open"
         />
@@ -245,10 +244,10 @@ function AuthedHome({
           <div className="flex items-baseline justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
-                답변을 기다리는 질문
+                열린 문제 로그
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                아직 해결되지 않은 질문부터 확인합니다.
+                아직 닫지 않은 문제와 조사거리를 먼저 확인합니다.
               </p>
             </div>
             <Link
@@ -278,17 +277,17 @@ function AuthedHome({
           <div className="flex items-baseline justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
-                최근 학습 기록
+                최근 공개 기록
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                블로그에 쌓이는 공개 기록입니다.
+                블로그에 쌓이는 공개 archive 기록입니다.
               </p>
             </div>
             <Link
               href="/blog"
               className="text-sm font-medium text-brand-700 hover:text-brand-900"
             >
-              블로그
+              Records
             </Link>
           </div>
           <div className="mt-4 space-y-3">

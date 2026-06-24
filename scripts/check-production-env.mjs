@@ -1,4 +1,4 @@
-const requiredWhenProduction = ["ALLOWED_SIGNUP_EMAIL_DOMAINS"];
+const admissionGateEnv = ["ARCHIVE_OWNER_EMAIL", "ALLOWED_SIGNUP_EMAIL_DOMAINS"];
 
 function isProductionLike() {
   return process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
@@ -12,10 +12,10 @@ function hasValue(name) {
 }
 
 if (isProductionLike()) {
-  const missing = requiredWhenProduction.filter((name) => !hasValue(name));
-  if (missing.length > 0) {
+  const hasAdmissionGate = admissionGateEnv.some((name) => hasValue(name));
+  if (!hasAdmissionGate) {
     console.error(
-      `Production admission gate is not configured: ${missing.join(", ")}`,
+      `Production archive admission gate is not configured: set one of ${admissionGateEnv.join(", ")}`,
     );
     process.exit(1);
   }
